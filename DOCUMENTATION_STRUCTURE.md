@@ -30,7 +30,8 @@
 │   │
 │   ├── 📁 planning/
 │   │   ├── 📄 original-plan.md               # (rename from consensusnet-plan.md)
-│   │   ├── 📄 milestones.md                  # High-level milestones
+│   │   ├── 📄 milestones.md                  # ✅ Comprehensive development milestones with team review schedule
+│   │   ├── 📄 early-deployment-proposal.md   # ✅ Production deployment strategy
 │   │   ├── 📄 risk-assessment.md             # Project risks & mitigations
 │   │   └── 📄 budget-analysis.md             # Detailed cost breakdown
 │   │

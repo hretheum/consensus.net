@@ -25,6 +25,7 @@ Key innovations: Dynamic agent spawning, adversarial verification, swarm bursts,
 ## 📚 Essential Documents Map
 
 ### Strategic Documents
+- **[docs/planning/milestones.md](./docs/planning/milestones.md)** - Comprehensive development milestones with team review schedule 🆕⭐
 - **[docs/planning/original-plan.md](./docs/planning/original-plan.md)** - Original project vision and high-level plan
 - **[docs/architecture/ARCHITECTURE_RECOMMENDATION.md](./docs/architecture/ARCHITECTURE_RECOMMENDATION.md)** - Detailed ECAMAN architecture specification ⭐
 - **[consensus-roadmap.md](./consensus-roadmap.md)** - 12-week atomic task breakdown with success metrics ⭐

@@ -94,6 +94,13 @@ Specialized Agents → Adversarial Debates → Trust-Weighted Consensus
 - [ ] Consensus mechanisms
 - [ ] Frontend development
 
+### 📋 Development Milestones
+See our comprehensive [Development Milestones](docs/planning/milestones.md) for detailed project planning with:
+- 4 major phases spanning 12 weeks
+- Clear deliverables and success criteria
+- Dependencies and risk assessment
+- Team review checkpoints
+
 ## 🤝 Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
