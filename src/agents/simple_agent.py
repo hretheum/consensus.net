@@ -22,6 +22,17 @@ from .agent_models import (
     InputError, VerificationError
 )
 
+# Import real LLM client with fallback
+try:
+    from ..llm.llm_client import RealLLMInteraction
+    from ..config.llm_config import LLMModel
+    REAL_LLM_AVAILABLE = True
+except ImportError as e:
+    REAL_LLM_AVAILABLE = False
+    LLMModel = None
+    print(f"Real LLM integration not available: {e}")
+    print("Using simulation mode only.")
+
 
 class InputProcessor:
     """Handles input claim processing and normalization."""
@@ -617,7 +628,21 @@ class SimpleAgent(BaseAgent):
         # Initialize components
         self.input_processor = InputProcessor()
         self.state_manager = StateManager()
-        self.llm_interaction = SimpleLLMInteraction()
+        
+        # Initialize LLM interaction based on configuration
+        if self.config.use_real_llm and REAL_LLM_AVAILABLE and LLMModel is not None:
+            try:
+                primary_model = LLMModel(self.config.primary_model)
+                self.llm_interaction = RealLLMInteraction(default_model=primary_model)
+                print(f"Agent {self.agent_id}: Using real LLM integration with {primary_model.value}")
+            except Exception as e:
+                print(f"Agent {self.agent_id}: Failed to initialize real LLM, falling back to simulation: {e}")
+                self.llm_interaction = SimpleLLMInteraction()
+        else:
+            self.llm_interaction = SimpleLLMInteraction()
+            if self.config.use_real_llm:
+                print(f"Agent {self.agent_id}: Real LLM requested but not available, using simulation")
+        
         self.evidence_engine = SimpleEvidenceEngine()
         self.verification_logic = VerificationLogic(self.llm_interaction, self.evidence_engine)
         self.output_generator = OutputGenerator()
