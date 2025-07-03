@@ -21,10 +21,16 @@ from .agent_models import (
     VerificationStep, VerificationChain, PerformanceMetrics,
     InputError, VerificationError
 )
+from .input_processor import InputProcessor as EnhancedInputProcessor
 
 
 class InputProcessor:
-    """Handles input claim processing and normalization."""
+    """
+    Legacy InputProcessor for backward compatibility.
+    
+    This is the original simple implementation. For new features,
+    consider using the enhanced InputProcessor from input_processor.py
+    """
     
     def parse_claim(self, raw_claim: str) -> ProcessedClaim:
         """Parse and normalize incoming claim."""
@@ -366,13 +372,23 @@ class SimpleAgent(BaseAgent):
     - Output Generator
     """
     
-    def __init__(self, agent_id: str = None, config: Optional[AgentConfig] = None):
+    def __init__(self, agent_id: str = None, config: Optional[AgentConfig] = None, use_enhanced_processor: bool = False):
         super().__init__(agent_id)
         
         self.config = config or AgentConfig(agent_id=self.agent_id)
         
         # Initialize components
-        self.input_processor = InputProcessor()
+        if use_enhanced_processor:
+            # Use the new enhanced InputProcessor with multi-format support
+            processor_config = {
+                "max_claim_length": getattr(self.config, 'max_claim_length', 10000),
+                "min_claim_length": getattr(self.config, 'min_claim_length', 3)
+            }
+            self.input_processor = EnhancedInputProcessor(processor_config)
+        else:
+            # Use the legacy InputProcessor for backward compatibility
+            self.input_processor = InputProcessor()
+            
         self.state_manager = StateManager()
         self.llm_interaction = SimpleLLMInteraction()
         self.evidence_engine = SimpleEvidenceEngine()
@@ -382,12 +398,15 @@ class SimpleAgent(BaseAgent):
         # Performance tracking
         self.metrics = PerformanceMetrics()
     
-    def verify(self, claim: str) -> VerificationResult:
+    def verify(self, claim) -> VerificationResult:
         """
         Verify a claim using the complete agent architecture pipeline.
         
         This method orchestrates all components to process the claim from
         input to final verification result.
+        
+        Args:
+            claim: Input claim as string, dict (JSON), or other supported format
         """
         start_time = time.time()
         
@@ -425,7 +444,7 @@ class SimpleAgent(BaseAgent):
         except Exception as e:
             # Error handling
             error_result = VerificationResult(
-                claim=claim,
+                claim=str(claim) if not isinstance(claim, str) else claim,
                 verdict="ERROR",
                 confidence=0.0,
                 reasoning=f"Verification failed: {str(e)}",
