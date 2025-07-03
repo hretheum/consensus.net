@@ -175,6 +175,7 @@ class AgentConfig:
     domain_expertise: List[str] = field(default_factory=list)
     
     # LLM Configuration (based on research in docs/research/llm-selection-analysis.md)
+    use_real_llm: bool = False  # Whether to use real LLM APIs or simulation
     primary_model: str = "gpt-4o-mini"  # Primary: best balance of cost/performance
     secondary_model: str = "claude-3-haiku"  # Secondary: complex reasoning tasks
     fallback_model: str = "ollama/llama3.2"  # Fallback: privacy/availability
