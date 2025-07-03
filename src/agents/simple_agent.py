@@ -239,7 +239,17 @@ class VerificationLogic:
         start_time = time.time()
         
         try:
-            # Step 1: Evidence gathering
+            # Step 1: Claim structure analysis
+            claim_components = self._analyze_claim_structure(claim)
+            chain.steps.append(VerificationStep(
+                step_type="claim_analysis",
+                input_data={"original_claim": claim.original_text},
+                output_data={"components": claim_components, "component_count": len(claim_components)},
+                confidence=0.9,  # High confidence in structural analysis
+                reasoning=f"Analyzed claim structure, identified {len(claim_components)} verifiable components"
+            ))
+            
+            # Step 2: Evidence gathering
             sources = self.evidence.search_sources(claim)
             evidence_bundle = self.evidence.retrieve_evidence(sources, claim)
             
@@ -248,10 +258,10 @@ class VerificationLogic:
                 input_data={"sources": sources},
                 output_data={"evidence_count": evidence_bundle.total_evidence_count},
                 confidence=evidence_bundle.overall_quality,
-                reasoning=f"Gathered {evidence_bundle.total_evidence_count} pieces of evidence"
+                reasoning=f"Gathered {evidence_bundle.total_evidence_count} pieces of evidence from {len(sources)} sources"
             ))
             
-            # Step 2: LLM analysis
+            # Step 3: LLM analysis
             prompt = self.llm.generate_verification_prompt(claim)
             llm_request = LLMRequest(
                 prompt=prompt,
@@ -265,19 +275,46 @@ class VerificationLogic:
                 input_data={"prompt_length": len(prompt)},
                 output_data={"tokens_used": llm_response.tokens_used},
                 confidence=llm_response.confidence or 0.5,
-                reasoning="LLM provided verification analysis"
+                reasoning="LLM provided verification analysis with contextual reasoning"
             ))
             
-            # Step 3: Final verdict calculation
+            # Step 4: Bias detection and mitigation
+            bias_indicators = self._detect_potential_biases(claim, evidence_bundle)
+            chain.steps.append(VerificationStep(
+                step_type="bias_detection",
+                input_data={"claim_domain": claim.domain},
+                output_data={"bias_indicators": bias_indicators, "bias_count": len(bias_indicators)},
+                confidence=0.8 if len(bias_indicators) == 0 else max(0.4, 0.8 - len(bias_indicators) * 0.1),
+                reasoning=f"Analyzed potential biases, found {len(bias_indicators)} indicators requiring attention"
+            ))
+            
+            # Step 5: Uncertainty assessment
+            uncertainty_factors = self._assess_uncertainty_factors(claim, evidence_bundle, llm_response)
+            chain.uncertainty_factors.extend(uncertainty_factors)
+            
+            chain.steps.append(VerificationStep(
+                step_type="uncertainty_assessment",
+                input_data={"evidence_quality": evidence_bundle.overall_quality},
+                output_data={"uncertainty_count": len(uncertainty_factors)},
+                confidence=max(0.3, 1.0 - (len(uncertainty_factors) * 0.15)),
+                reasoning=f"Identified {len(uncertainty_factors)} uncertainty factors affecting verification"
+            ))
+            
+            # Step 6: Final verdict calculation
             verdict = self._extract_verdict(llm_response.content)
             confidence = self._calculate_final_confidence(evidence_bundle, llm_response)
             
+            # Apply bias penalty to confidence
+            if bias_indicators:
+                bias_penalty = min(len(bias_indicators) * 0.05, 0.15)
+                confidence = max(0.0, confidence - bias_penalty)
+            
             chain.steps.append(VerificationStep(
                 step_type="verdict_calculation",
-                input_data={"evidence_quality": evidence_bundle.overall_quality},
-                output_data={"final_verdict": verdict},
+                input_data={"evidence_quality": evidence_bundle.overall_quality, "component_count": len(claim_components)},
+                output_data={"final_verdict": verdict, "bias_penalty": len(bias_indicators) * 0.05},
                 confidence=confidence,
-                reasoning="Combined evidence and LLM analysis for final verdict"
+                reasoning="Combined multi-factor analysis with bias mitigation for final verdict"
             ))
             
             chain.overall_verdict = verdict
@@ -304,12 +341,148 @@ class VerificationLogic:
             return "UNCERTAIN"
     
     def _calculate_final_confidence(self, evidence: EvidenceBundle, llm_response: LLMResponse) -> float:
-        """Calculate final confidence score."""
+        """Calculate final confidence score using multi-factor analysis."""
         evidence_confidence = evidence.overall_quality
         llm_confidence = llm_response.confidence or 0.5
         
-        # Simple weighted average
-        return (evidence_confidence * 0.4) + (llm_confidence * 0.6)
+        # Factor in evidence consistency
+        supporting_count = len(evidence.supporting_evidence)
+        contradicting_count = len(evidence.contradicting_evidence)
+        total_evidence = evidence.total_evidence_count
+        
+        if total_evidence > 0:
+            evidence_consistency = abs(supporting_count - contradicting_count) / total_evidence
+        else:
+            evidence_consistency = 0.0
+        
+        # Factor in evidence quality distribution
+        if total_evidence > 0:
+            all_evidence = evidence.supporting_evidence + evidence.contradicting_evidence + evidence.neutral_evidence
+            quality_variance = self._calculate_evidence_quality_variance(all_evidence)
+            quality_penalty = min(quality_variance * 0.3, 0.2)  # Cap penalty at 0.2
+        else:
+            quality_penalty = 0.1
+        
+        # Weighted confidence calculation
+        base_confidence = (evidence_confidence * 0.4) + (llm_confidence * 0.6)
+        consistency_boost = evidence_consistency * 0.1
+        final_confidence = base_confidence + consistency_boost - quality_penalty
+        
+        # Ensure confidence is within valid range [0.0, 1.0]
+        return max(0.0, min(1.0, final_confidence))
+    
+    def _calculate_evidence_quality_variance(self, evidence_list: List[Evidence]) -> float:
+        """Calculate variance in evidence quality scores."""
+        if len(evidence_list) <= 1:
+            return 0.0
+        
+        qualities = [evidence.credibility_score for evidence in evidence_list]
+        mean_quality = sum(qualities) / len(qualities)
+        variance = sum((q - mean_quality) ** 2 for q in qualities) / len(qualities)
+        return variance
+    
+    def _analyze_claim_structure(self, claim: ProcessedClaim) -> List[str]:
+        """Break down complex claims into verifiable components."""
+        components = []
+        text = claim.normalized_text
+        
+        # Look for compound statements (and, or, but)
+        connectors = [" and ", " or ", " but ", " however ", " although ", " because "]
+        
+        # Split by connectors
+        current_text = text
+        for connector in connectors:
+            if connector in current_text:
+                parts = current_text.split(connector)
+                components.extend([part.strip() for part in parts if part.strip()])
+                break
+        else:
+            # No connectors found, treat as single component
+            components.append(text.strip())
+        
+        # Filter out very short components (likely incomplete)
+        meaningful_components = [comp for comp in components if len(comp.split()) >= 3]
+        
+        return meaningful_components if meaningful_components else [text.strip()]
+    
+    def _assess_uncertainty_factors(self, claim: ProcessedClaim, evidence: EvidenceBundle, llm_response: LLMResponse) -> List[str]:
+        """Identify factors that contribute to uncertainty in verification."""
+        factors = []
+        
+        # Evidence-based uncertainty factors
+        if evidence.total_evidence_count == 0:
+            factors.append("No evidence found for verification")
+        elif evidence.total_evidence_count < 3:
+            factors.append("Limited evidence available")
+        
+        if len(evidence.contradicting_evidence) > len(evidence.supporting_evidence):
+            factors.append("More contradicting than supporting evidence")
+        
+        if evidence.overall_quality < 0.5:
+            factors.append("Low overall evidence quality")
+        
+        # Claim complexity factors
+        if claim.complexity == ClaimComplexity.COMPLEX:
+            factors.append("High claim complexity requires careful analysis")
+        
+        # Domain-specific factors
+        if claim.domain == "general":
+            factors.append("General domain claims may lack specialized verification")
+        
+        # LLM confidence factors
+        if llm_response.confidence and llm_response.confidence < 0.6:
+            factors.append("Low LLM analysis confidence")
+        
+        # Content-based factors
+        if any(word in claim.normalized_text for word in ["predict", "future", "will", "tomorrow", "next"]):
+            factors.append("Predictive claims are inherently uncertain")
+        
+        if any(word in claim.normalized_text for word in ["always", "never", "all", "none", "every"]):
+            factors.append("Absolute statements are difficult to verify completely")
+        
+        return factors
+    
+    def _detect_potential_biases(self, claim: ProcessedClaim, evidence: EvidenceBundle) -> List[str]:
+        """Detect potential biases in claim verification process."""
+        bias_indicators = []
+        
+        # Source diversity bias
+        if evidence.total_evidence_count > 0:
+            all_evidence = evidence.supporting_evidence + evidence.contradicting_evidence + evidence.neutral_evidence
+            sources = set(ev.source for ev in all_evidence)
+            if len(sources) < max(2, evidence.total_evidence_count // 2):
+                bias_indicators.append("Limited source diversity may introduce bias")
+        
+        # Confirmation bias indicators
+        supporting_count = len(evidence.supporting_evidence)
+        contradicting_count = len(evidence.contradicting_evidence)
+        if supporting_count > 0 and contradicting_count == 0:
+            bias_indicators.append("Only supporting evidence found - potential confirmation bias")
+        elif contradicting_count > 0 and supporting_count == 0:
+            bias_indicators.append("Only contradicting evidence found - potential negative bias")
+        
+        # Quality bias
+        if evidence.total_evidence_count > 1:
+            all_evidence = evidence.supporting_evidence + evidence.contradicting_evidence + evidence.neutral_evidence
+            high_quality_count = sum(1 for ev in all_evidence if ev.credibility_score > 0.8)
+            if high_quality_count / len(all_evidence) < 0.5:
+                bias_indicators.append("Majority of evidence from lower-quality sources")
+        
+        # Domain expertise bias
+        specialized_domains = ["science", "health", "economics", "law"]
+        if claim.domain in specialized_domains and claim.complexity == ClaimComplexity.COMPLEX:
+            bias_indicators.append(f"Complex {claim.domain} claim may require specialized expertise")
+        
+        # Temporal bias for news claims
+        if claim.domain == "news" and not any(word in claim.normalized_text for word in ["today", "yesterday", "recent"]):
+            bias_indicators.append("News claims without temporal context may be outdated")
+        
+        # Language bias indicators
+        emotional_words = ["amazing", "terrible", "shocking", "outrageous", "incredible", "unbelievable"]
+        if any(word in claim.normalized_text for word in emotional_words):
+            bias_indicators.append("Emotionally charged language may indicate bias")
+        
+        return bias_indicators
 
 
 class OutputGenerator:
