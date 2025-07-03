@@ -23,10 +23,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Status tracking document
 - 5 initial GitHub issues (#1-#5)
 - GitHub Projects board for roadmap visualization
+- Container-first architecture design ✨
+- Docker configuration files:
+  - `Dockerfile.api` for API service
+  - `docker-compose.yml` for development
+  - `docker-compose.prod.yml` for production
+  - `.dockerignore` for build optimization
+- Early deployment strategy (Week 3) with CI/CD pipeline
 - Helper scripts:
   - `reorganize_docs.sh` - Documentation structure setup
   - `configure_github.sh` - GitHub features configuration
   - `git-push.sh` - Secure push with PAT
+
+#### Changed
+- Updated roadmap with container-first tasks
+- Modified deployment approach to use GitHub Container Registry
+- No source code on production servers policy
+
+#### Architecture Decisions
+- Container-first approach for all services
+- GitHub Container Registry (ghcr.io) for image storage
+- Managed PostgreSQL on Digital Ocean (not containerized)
+- Immutable infrastructure pattern
 
 #### Security
 - `.env` file for GitHub PAT (added to .gitignore)

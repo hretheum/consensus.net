@@ -50,6 +50,11 @@ Methodology: Agile with 2-week sprints
   - Metric: requirements.txt, requirements-dev.txt, setup.py created
   - Validation: `pip install -e .` runs without errors
 
+- [ ] **0.1.5** Create containerization foundation 🆕
+  - Metric: Dockerfile.api, docker-compose.yml created
+  - Validation: `docker-compose up` starts all services
+  - Note: Container-first approach from day 1
+
 ### 0.2 Infrastructure Planning
 
 #### Atomic Tasks:
@@ -204,10 +209,12 @@ Methodology: Agile with 2-week sprints
 - [ ] **1.5.3** Configure GitHub Actions CD
   - Metric: Auto-deploy on push to main
   - Validation: Changes live in <5 minutes
+  - Implementation: Build images → Push to ghcr.io → Deploy
 
-- [ ] **1.5.4** Deploy Single Agent API
-  - Metric: /verify endpoint publicly accessible
+- [ ] **1.5.4** Deploy containerized API
+  - Metric: API container running on DO
   - Validation: curl https://api.consensus.net/verify
+  - Note: Pull from ghcr.io, no source on prod
 
 - [ ] **1.5.5** Setup Nginx & Let's Encrypt SSL
   - Metric: HTTPS working with A+ rating

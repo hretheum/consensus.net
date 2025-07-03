@@ -33,3 +33,18 @@ Thumbs.db
 /data/
 /models/
 /outputs/
+
+# Docker volumes (local)
+/postgres_data/
+/redis_data/
+/prometheus_data/
+/grafana_data/
+
+# Production configs (sensitive)
+docker-compose.prod.yml
+nginx/nginx.conf
+letsencrypt/
+certbot/
+
+# Container logs
+*.log

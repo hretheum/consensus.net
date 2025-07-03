@@ -8,7 +8,7 @@
 - **LinkedIn visibility** - Show working product early
 - **DevOps practice** - CI/CD from the start
 
-### 1.5 Digital Ocean Basic Deployment
+### 1.5 Digital Ocean Container Deployment 🐳
 
 #### Atomic Tasks:
 - [ ] **1.5.1** Setup Digital Ocean Droplet
@@ -20,21 +20,24 @@
   - Metric: Docker & Docker Compose installed
   - Validation: `docker run hello-world` succeeds
 
-- [ ] **1.5.3** Setup GitHub Actions for CD
-  - Metric: Push to main = auto deploy
-  - Validation: Code changes live in <5 minutes
+- [ ] **1.5.3** Setup GitHub Actions for Container CI/CD
+  - Metric: Push to main = build + deploy containers
+  - Workflow: Build → Test → Push to ghcr.io → Deploy
+  - Validation: New images auto-deployed in <5 minutes
 
-- [ ] **1.5.4** Deploy Single Agent API
-  - Metric: Basic /verify endpoint accessible
+- [ ] **1.5.4** Deploy Containerized Services
+  - Metric: All services running in containers
+  - Services: API, Agent Workers, Nginx, Redis
   - Validation: https://api.consensus.net/verify works
 
 - [ ] **1.5.5** Configure Nginx & SSL
   - Metric: HTTPS with Let's Encrypt
   - Validation: SSL Labs A+ rating
 
-- [ ] **1.5.6** Setup Basic Monitoring
-  - Metric: Uptime monitoring active
-  - Validation: Alerts work for downtime
+- [ ] **1.5.6** Setup Container Monitoring
+  - Metric: Container health checks active
+  - Tools: Docker stats, Prometheus (optional)
+  - Validation: Alerts work for container failures
 
 ### Progressive Deployment Strategy
 
@@ -79,21 +82,53 @@
    - Monitor actual usage patterns
    - Optimize before scaling
 
-### GitHub Actions Workflow Example
+### GitHub Actions Workflow Example (Container-First)
 
 ```yaml
-name: Deploy to Digital Ocean
+name: Build and Deploy Containers
 
 on:
   push:
     branches: [main]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
-  deploy:
+  build-test-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
     steps:
       - uses: actions/checkout@v3
       
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and test images
+        run: |
+          docker-compose build
+          docker-compose run api pytest
+      
+      - name: Push images to registry
+        run: |
+          docker tag consensusnet-api:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          docker tag consensusnet-api:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ github.sha }}
+
+  deploy:
+    needs: build-test-push
+    runs-on: ubuntu-latest
+    
+    steps:
       - name: Deploy to DO Droplet
         uses: appleboy/ssh-action@v0.1.5
         with:
@@ -101,11 +136,13 @@ jobs:
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
-            cd /app/consensus.net
-            git pull
-            docker-compose down
-            docker-compose up -d --build
-            docker system prune -f
+            cd /app
+            # Pull latest images from ghcr.io
+            docker-compose -f docker-compose.prod.yml pull
+            # Restart with new images
+            docker-compose -f docker-compose.prod.yml up -d
+            # Cleanup old images
+            docker image prune -f
 ```
 
 ### Monitoring Stack (Basic)

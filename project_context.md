@@ -60,6 +60,13 @@ Key innovations: Dynamic agent spawning, adversarial verification, swarm bursts,
 2. **Adversarial Debates** - Agents actively challenge each other
 3. **Trust Networks** - Graph-based reputation system
 4. **Swarm Bursts** - 10-20 micro-agents for urgent verifications
+5. **Container-First Architecture** - All services run in Docker containers 🆕
+
+### Development & Deployment Approach 🆕
+- **Container-First**: Everything runs in Docker (local & prod)
+- **No source code on production**: Only pre-built images from ghcr.io
+- **CI/CD Pipeline**: GitHub Actions builds and deploys containers
+- **Immutable Infrastructure**: Updates = new container versions
 
 ## 📊 Success Metrics
 
