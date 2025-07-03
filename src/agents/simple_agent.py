@@ -313,7 +313,12 @@ class VerificationLogic:
 
 
 class OutputGenerator:
-    """Generates final verification results."""
+    """
+    Generates final verification results with comprehensive formatting and delivery options.
+    
+    Supports multiple output formats (text, JSON, structured) and delivery channels
+    (API response, message queue) as specified in the core agent architecture.
+    """
     
     def format_result(self, claim: ProcessedClaim, chain: VerificationChain, agent_id: str) -> VerificationResult:
         """Format the verification chain into a VerificationResult."""
@@ -329,16 +334,15 @@ class OutputGenerator:
             evidence_list.append(f"{step.step_type}: {step.reasoning}")
         
         # Generate reasoning chain
-        reasoning_parts = []
-        for i, step in enumerate(chain.steps, 1):
-            reasoning_parts.append(f"{i}. {step.reasoning} (confidence: {step.confidence:.2f})")
+        reasoning = self.generate_reasoning_chain(chain.steps)
         
-        reasoning = " | ".join(reasoning_parts)
+        # Normalize confidence to valid range before creating result
+        normalized_confidence = max(0.0, min(1.0, chain.final_confidence))
         
-        return VerificationResult(
+        result = VerificationResult(
             claim=claim.original_text,
             verdict=chain.overall_verdict,
-            confidence=chain.final_confidence,
+            confidence=normalized_confidence,
             reasoning=reasoning,
             sources=sources,
             evidence=evidence_list,
@@ -351,6 +355,245 @@ class OutputGenerator:
             },
             agent_id=agent_id
         )
+        
+        # Validate result quality and add warning if needed
+        if not self.validate_result_quality(result):
+            # Add warning to metadata if quality is insufficient
+            result.metadata["quality_warning"] = "Result may have incomplete or low-quality information"
+        
+        # Add warning if confidence was normalized
+        if chain.final_confidence != normalized_confidence:
+            result.metadata["confidence_normalized"] = f"Original confidence {chain.final_confidence} was normalized to {normalized_confidence}"
+        
+        return result
+    
+    def compile_evidence_summary(self, evidence: EvidenceBundle) -> List[str]:
+        """Organize supporting/contradicting evidence into a structured summary."""
+        summary = []
+        
+        if evidence.supporting_evidence:
+            summary.append(f"Supporting Evidence ({len(evidence.supporting_evidence)} items):")
+            for i, ev in enumerate(evidence.supporting_evidence, 1):
+                summary.append(f"  {i}. {ev.content[:100]}{'...' if len(ev.content) > 100 else ''} (credibility: {ev.credibility_score:.2f})")
+        
+        if evidence.contradicting_evidence:
+            summary.append(f"Contradicting Evidence ({len(evidence.contradicting_evidence)} items):")
+            for i, ev in enumerate(evidence.contradicting_evidence, 1):
+                summary.append(f"  {i}. {ev.content[:100]}{'...' if len(ev.content) > 100 else ''} (credibility: {ev.credibility_score:.2f})")
+        
+        if evidence.neutral_evidence:
+            summary.append(f"Neutral Evidence ({len(evidence.neutral_evidence)} items):")
+            for i, ev in enumerate(evidence.neutral_evidence, 1):
+                summary.append(f"  {i}. {ev.content[:100]}{'...' if len(ev.content) > 100 else ''} (credibility: {ev.credibility_score:.2f})")
+        
+        summary.append(f"Overall Evidence Quality: {evidence.overall_quality:.2f}")
+        
+        return summary
+    
+    def generate_reasoning_chain(self, steps: List[VerificationStep]) -> str:
+        """Document the complete verification process in a readable format."""
+        reasoning_parts = []
+        for i, step in enumerate(steps, 1):
+            reasoning_parts.append(f"{i}. {step.reasoning} (confidence: {step.confidence:.2f})")
+        
+        return " | ".join(reasoning_parts)
+    
+    def handle_verification_errors(self, error: Exception) -> VerificationResult:
+        """Manage and report verification failures with appropriate error formatting."""
+        error_type = type(error).__name__
+        error_message = str(error)
+        
+        return VerificationResult(
+            claim="[Error during verification]",
+            verdict="ERROR",
+            confidence=0.0,
+            reasoning=f"Verification failed due to {error_type}: {error_message}",
+            sources=[],
+            evidence=[f"Error: {error_message}"],
+            metadata={
+                "error_type": error_type,
+                "error_message": error_message,
+                "processing_time": 0.0,
+                "steps_count": 0
+            },
+            agent_id="error_handler"
+        )
+    
+    def validate_result_quality(self, result: VerificationResult) -> bool:
+        """Validate result completeness and consistency."""
+        # Check for basic completeness
+        if not result.claim or not result.verdict or not result.reasoning:
+            return False
+        
+        # Check confidence is within valid range
+        if not (0.0 <= result.confidence <= 1.0):
+            return False
+        
+        # Check verdict is valid
+        valid_verdicts = {"TRUE", "FALSE", "UNCERTAIN", "ERROR"}
+        if result.verdict not in valid_verdicts:
+            return False
+        
+        # Check reasoning has sufficient detail (basic heuristic)
+        if len(result.reasoning) < 10:
+            return False
+        
+        return True
+    
+    # Output Format Methods
+    def to_text_format(self, result: VerificationResult, detailed: bool = False) -> str:
+        """Convert VerificationResult to human-readable text format."""
+        text_parts = [
+            f"CLAIM: {result.claim}",
+            f"VERDICT: {result.verdict}",
+            f"CONFIDENCE: {result.confidence:.2%}",
+            f"REASONING: {result.reasoning}"
+        ]
+        
+        if detailed:
+            if result.sources:
+                text_parts.append(f"SOURCES: {', '.join(result.sources)}")
+            
+            if result.evidence:
+                text_parts.append("EVIDENCE:")
+                for i, evidence in enumerate(result.evidence, 1):
+                    text_parts.append(f"  {i}. {evidence}")
+            
+            if result.metadata:
+                text_parts.append("METADATA:")
+                for key, value in result.metadata.items():
+                    text_parts.append(f"  {key}: {value}")
+        
+        text_parts.append(f"Verified at: {result.timestamp.isoformat()}")
+        if result.agent_id:
+            text_parts.append(f"Agent ID: {result.agent_id}")
+        
+        return "\n".join(text_parts)
+    
+    def to_json_format(self, result: VerificationResult, pretty: bool = False) -> str:
+        """Convert VerificationResult to JSON format."""
+        import json
+        
+        json_data = result.model_dump()  # Updated Pydantic method
+        
+        if pretty:
+            return json.dumps(json_data, indent=2, default=str)
+        else:
+            return json.dumps(json_data, default=str)
+    
+    def to_structured_format(self, result: VerificationResult) -> Dict[str, Any]:
+        """Convert VerificationResult to structured dictionary format for API responses."""
+        return {
+            "status": "success" if result.verdict != "ERROR" else "error",
+            "data": {
+                "claim": result.claim,
+                "verdict": result.verdict,
+                "confidence": result.confidence,
+                "reasoning": result.reasoning,
+                "sources": result.sources,
+                "evidence_count": len(result.evidence),
+                "processing_metadata": {
+                    "timestamp": result.timestamp.isoformat(),
+                    "agent_id": result.agent_id,
+                    **result.metadata
+                }
+            }
+        }
+    
+    # Delivery Channel Methods
+    def format_for_api_response(self, result: VerificationResult, format_type: str = "json") -> Dict[str, Any]:
+        """Format result for API response delivery."""
+        if format_type.lower() == "json":
+            return {
+                "success": True,
+                "result": result.model_dump(),
+                "format": "json",
+                "timestamp": result.timestamp.isoformat()
+            }
+        elif format_type.lower() == "text":
+            return {
+                "success": True,
+                "result": self.to_text_format(result, detailed=True),
+                "format": "text",
+                "timestamp": result.timestamp.isoformat()
+            }
+        else:
+            return {
+                "success": True,
+                "result": self.to_structured_format(result),
+                "format": "structured",
+                "timestamp": result.timestamp.isoformat()
+            }
+    
+    def format_for_message_queue(self, result: VerificationResult, queue_type: str = "standard") -> Dict[str, Any]:
+        """Format result for message queue delivery."""
+        base_message = {
+            "message_type": "verification_result",
+            "timestamp": result.timestamp.isoformat(),
+            "agent_id": result.agent_id,
+            "claim_id": hash(result.claim),  # Simple claim identifier
+            "payload": result.model_dump()
+        }
+        
+        if queue_type == "compact":
+            # Compact format for high-throughput scenarios
+            return {
+                "type": "verification",
+                "claim": result.claim,
+                "verdict": result.verdict,
+                "confidence": result.confidence,
+                "timestamp": result.timestamp.isoformat()
+            }
+        elif queue_type == "detailed":
+            # Detailed format with all metadata
+            base_message["format"] = "detailed"
+            base_message["metadata"] = result.metadata
+            return base_message
+        else:
+            # Standard format
+            return base_message
+    
+    def format_user_friendly(self, result: VerificationResult) -> str:
+        """Generate a user-friendly, conversational format of the result."""
+        confidence_desc = self._get_confidence_description(result.confidence)
+        
+        if result.verdict == "TRUE":
+            verdict_desc = f"✅ This claim appears to be **TRUE** with {confidence_desc} confidence."
+        elif result.verdict == "FALSE":
+            verdict_desc = f"❌ This claim appears to be **FALSE** with {confidence_desc} confidence."
+        elif result.verdict == "UNCERTAIN":
+            verdict_desc = f"❓ This claim is **UNCERTAIN** - we couldn't find enough reliable evidence to verify it."
+        else:  # ERROR
+            verdict_desc = f"⚠️ We encountered an error while verifying this claim."
+        
+        friendly_text = [
+            f"**Claim:** {result.claim}",
+            "",
+            verdict_desc,
+            "",
+            f"**Our reasoning:** {result.reasoning}",
+        ]
+        
+        if result.sources:
+            friendly_text.extend([
+                "",
+                f"**Sources checked:** {len(result.sources)} sources including {', '.join(result.sources[:3])}{'...' if len(result.sources) > 3 else ''}"
+            ])
+        
+        return "\n".join(friendly_text)
+    
+    def _get_confidence_description(self, confidence: float) -> str:
+        """Convert numerical confidence to descriptive text."""
+        if confidence >= 0.9:
+            return "very high"
+        elif confidence >= 0.7:
+            return "high"
+        elif confidence >= 0.5:
+            return "moderate"
+        elif confidence >= 0.3:
+            return "low"
+        else:
+            return "very low"
 
 
 class SimpleAgent(BaseAgent):
