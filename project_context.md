@@ -4,8 +4,8 @@
 
 **ConsensusNet** is an innovative multi-agent AI system for decentralized fact-checking, using collective intelligence to combat misinformation. The project aims to position the creator as an AI researcher on LinkedIn through cutting-edge implementation and research publications.
 
-**Project Status**: Active Development - Phase 0 Completed (as of 03.07.2025)  
-**Timeline**: 12 weeks to MVP (Week 0 completed)  
+**Project Status**: Active Development - Phase 1 Started (as of 03.07.2025 13:50 CET)  
+**Timeline**: 12 weeks to MVP (Week 0 completed, Week 1 in progress)  
 **Budget**: $40-100/month (Digital Ocean)  
 **Location**: `/Users/hretheum/dev/bezrobocie/consenus`  
 **Repository**: https://github.com/hretheum/consensus.net  
@@ -77,19 +77,23 @@ Key innovations: Dynamic agent spawning, adversarial verification, swarm bursts,
 
 ## 🚀 Current Phase & Next Steps
 
-**Current**: Phase 1 - Foundation (Week 1 starting)  
+**Current**: Phase 1 - Foundation (Week 1 in progress)  
 **Completed**:
 - ✅ GitHub repository created and configured
 - ✅ Documentation structure established
 - ✅ GitHub Pages enabled
-- ✅ Initial issues created (#1-#5)
+- ✅ Initial issues created (#1-#6)
 - ✅ Project board set up
+- ✅ Container-first architecture implemented
+- ✅ Docker environment tested and working
+- ✅ Basic FastAPI application running
+- ✅ Python development environment setup (Issue #1)
 
 **Next Immediate Tasks** (Priority Order):
-1. Setup Python development environment (Issue #1)
-2. Create requirements.txt with core dependencies
-3. Initialize database schema (Issue #2)
-4. Implement BaseAgent class (Issue #3)
+1. Initialize database schema (Issue #2)
+2. Implement BaseAgent class (Issue #3)
+3. Create Meta-Agent orchestrator
+4. Set up Redis for message queue
 
 See [consensus-roadmap.md](./consensus-roadmap.md) for detailed task breakdown.
 
@@ -115,15 +119,21 @@ When continuing work on this project, the AI should:
 # Navigate to project
 cd /Users/hretheum/dev/bezrobocie/consenus
 
-# Activate environment (after setup)
-source venv/bin/activate
+# Docker commands (main workflow)
+docker-compose up -d      # Start all services
+docker-compose down       # Stop all services
+docker-compose logs -f    # View logs
+docker-compose ps         # Check status
+docker-compose build      # Rebuild images
 
-# Run tests
-pytest
+# Access services
+# API: http://localhost:8000
+# PostgreSQL: localhost:5433 (user: consensus, pass: devpassword)
+# Redis: localhost:6380
 
-# Start development server
-docker-compose up -d
-python src/main.py
+# Development
+source venv/bin/activate  # Activate virtual environment (if not using Docker)
+pytest                    # Run tests
 ```
 
 ## 📝 Document Maintenance Notes

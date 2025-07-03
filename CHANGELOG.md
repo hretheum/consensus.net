@@ -27,7 +27,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker configuration files:
   - `Dockerfile.api` for API service
   - `docker-compose.yml` for development
-  - `docker-compose.prod.yml` for production
+  - `docker-compose.prod.yml.example` for production
+  - `.dockerignore` for optimized builds
+- GitHub Actions CI/CD pipeline (`.github/workflows/deploy.yml`)
+- Basic FastAPI application with health checks
+- Python dependencies in `requirements.txt`
+- Early deployment strategy for Week 3
+
+#### Changed
+- Port configuration to avoid conflicts:
+  - PostgreSQL: 5433 (from default 5432)
+  - Redis: 6380 (from default 6379)
+
+#### Tested
+- Docker containerization working correctly
+- All services (API, PostgreSQL, Redis) running in containers
+- Hot reload for development confirmed
+- Health check endpoints operational
   - `.dockerignore` for build optimization
 - Early deployment strategy (Week 3) with CI/CD pipeline
 - Helper scripts:

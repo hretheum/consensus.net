@@ -26,13 +26,24 @@ ConsensusNet is an innovative multi-agent AI system that leverages collective in
 git clone https://github.com/hretheum/consensus.net
 cd consensus.net
 
-# Run setup script (coming soon)
-./scripts/setup.sh
+# Copy environment configuration
+cp .env.example .env
+# Edit .env with your API keys
 
-# Start development server
+# Start all services with Docker
 docker-compose up -d
-python src/main.py
+
+# Check service status
+docker-compose ps
+
+# Access the API
+curl http://localhost:8000/api/health
 ```
+
+**Local Services:**
+- API: http://localhost:8000
+- PostgreSQL: localhost:5433 (user: consensus, pass: devpassword)
+- Redis: localhost:6380
 
 ### 🌐 Live Demo (Coming Week 3!)
 - API: https://api.consensus.net/verify
@@ -66,10 +77,14 @@ Specialized Agents → Adversarial Debates → Trust-Weighted Consensus
 - [x] GitHub repository setup
 - [x] GitHub Pages configuration
 - [x] Initial project planning
+- [x] Container-first architecture
+- [x] Docker environment setup and testing
+- [x] Basic FastAPI application with health checks
+- [x] CI/CD pipeline configuration (GitHub Actions)
 
 ### In Progress 🚧
-- [ ] Development environment setup (Issue #1)
-- [ ] Database schema design (Issue #2)
+- [x] Development environment setup (Issue #1) ✅
+- [ ] Database schema design (Issue #2) ← **Current Focus**
 - [ ] Base agent implementation (Issue #3)
 
 ### Upcoming 📅

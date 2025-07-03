@@ -58,9 +58,10 @@ Methodology: Agile with 2-week sprints
 ### 0.2 Infrastructure Planning
 
 #### Atomic Tasks:
-- [ ] **0.2.1** Create docker-compose.yml for local services
+- [x] **0.2.1** Create docker-compose.yml for local services ✅
   - Metric: PostgreSQL, Redis, and app services defined
   - Validation: `docker-compose config` validates successfully
+  - **Completed**: All services containerized and tested
 
 - [ ] **0.2.2** Design database schema v1
   - Metric: SQL migration files created for core tables
@@ -72,9 +73,9 @@ Methodology: Agile with 2-week sprints
   - **Completed**: GitHub repo configured with Issues, Projects, Pages
 
 **Phase 0 Success Metrics:**
-- All setup tasks completed: 100%
-- Development environment reproducible: Yes/No
-- Time to setup from scratch: <30 minutes
+- All setup tasks completed: 85% (Container setup done, DB schema pending)
+- Development environment reproducible: Yes (via Docker)
+- Time to setup from scratch: <10 minutes (with Docker)
 
 ---
 

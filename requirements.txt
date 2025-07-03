@@ -7,7 +7,7 @@ pydantic-settings==2.1.0
 # AI/ML
 langchain==0.1.0
 langchain-openai==0.0.5
-openai==1.9.0
+openai==1.10.0
 tiktoken==0.5.2
 
 # Database
