@@ -1,0 +1,53 @@
+# ConsensusNet Configuration File
+# This file contains the configuration settings for the ConsensusNet application
+
+# Application settings
+app_name: "ConsensusNet"
+version: "0.1.0"
+environment: "development"
+debug: true
+
+# API settings
+api_host: "0.0.0.0"
+api_port: 8000
+api_prefix: "/api"
+cors_origins:
+  - "*"
+
+# Agent configuration
+agent:
+  agent_id: "default_agent"
+  domain_expertise:
+    - "general"
+    - "science"
+  primary_model: "gpt-4o-mini"
+  secondary_model: "claude-3-haiku"
+  fallback_model: "ollama/llama3.2"
+  max_tokens: 2000
+  temperature: 0.1
+  confidence_threshold: 0.7
+  evidence_sources:
+    - "wikipedia"
+    - "scientific_journals"
+  max_verification_time: 30
+  max_history_items: 100
+  memory_decay_factor: 0.95
+  detailed_reasoning: true
+  include_uncertainty: true
+  evidence_limit: 10
+
+# Agent pool settings
+agent_pool_size: 5
+max_verification_time: 30
+
+# Database settings (for future use)
+database_url: "postgresql://localhost/consensusnet"
+redis_url: "redis://localhost:6379"
+
+# Logging settings
+log_level: "INFO"
+log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# External service settings will be loaded from environment variables:
+# OPENAI_API_KEY
+# ANTHROPIC_API_KEY
