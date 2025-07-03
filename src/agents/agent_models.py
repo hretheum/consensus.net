@@ -174,9 +174,10 @@ class AgentConfig:
     agent_id: str
     domain_expertise: List[str] = field(default_factory=list)
     
-    # LLM Configuration  
-    primary_model: str = "gpt-4o-mini"
-    fallback_model: str = "ollama/llama3.2"
+    # LLM Configuration (based on research in docs/research/llm-selection-analysis.md)
+    primary_model: str = "gpt-4o-mini"  # Primary: best balance of cost/performance
+    secondary_model: str = "claude-3-haiku"  # Secondary: complex reasoning tasks
+    fallback_model: str = "ollama/llama3.2"  # Fallback: privacy/availability
     max_tokens: int = 2000
     temperature: float = 0.1
     
