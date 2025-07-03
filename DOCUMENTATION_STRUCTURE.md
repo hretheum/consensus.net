@@ -21,6 +21,9 @@
 │   │
 │   ├── 📁 research/
 │   │   ├── 📄 agent-architectures-research.md # (rename from compass_artifact_*.md)
+│   │   ├── 📄 llm-selection-analysis.md       # ✅ LLM research & selection (Task 1.1.1)
+│   │   ├── 📄 llm-benchmarks-technical.md     # ✅ Technical LLM benchmarks
+│   │   ├── 📄 llm-research-summary.md         # ✅ Executive summary of LLM selection
 │   │   ├── 📄 consensus-algorithms.md         # Research on consensus mechanisms
 │   │   ├── 📄 benchmarks.md                   # Performance comparisons
 │   │   └── 📄 paper-drafts/                   # Academic paper drafts
