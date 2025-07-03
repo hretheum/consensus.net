@@ -180,6 +180,48 @@ Methodology: Agile with 2-week sprints
 - API response time: <3s average
 - Test coverage: >80%
 - Documentation completeness: 100%
+- **Live demo URL**: https://api.consensus.net ✨
+
+---
+
+## Phase 1.5: Early Production Deployment (Week 3) 🆕
+*Deploy early, deploy often!*
+
+### Sprint 2.5: Digital Ocean Setup
+
+#### 1.5 Basic Production Infrastructure
+
+##### Atomic Tasks:
+- [ ] **1.5.1** Setup Digital Ocean Droplet
+  - Metric: 4GB RAM / 2 vCPUs droplet running
+  - Validation: SSH access confirmed
+  - Cost: $24/month
+
+- [ ] **1.5.2** Install Docker & Docker Compose
+  - Metric: Docker running on droplet
+  - Validation: `docker --version` shows 24.0+
+
+- [ ] **1.5.3** Configure GitHub Actions CD
+  - Metric: Auto-deploy on push to main
+  - Validation: Changes live in <5 minutes
+
+- [ ] **1.5.4** Deploy Single Agent API
+  - Metric: /verify endpoint publicly accessible
+  - Validation: curl https://api.consensus.net/verify
+
+- [ ] **1.5.5** Setup Nginx & Let's Encrypt SSL
+  - Metric: HTTPS working with A+ rating
+  - Validation: SSL Labs test passes
+
+- [ ] **1.5.6** Configure Basic Monitoring
+  - Metric: Uptime monitoring active
+  - Validation: Test alert fires correctly
+
+**Phase 1.5 Success Metrics:**
+- Live API: https://api.consensus.net
+- Deployment time: <5 minutes
+- SSL security: A+ rating
+- Uptime: 99%+ from day 1
 
 ---
 

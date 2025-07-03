@@ -50,6 +50,14 @@ Last Updated: 03.07.2025 10:45 UTC
 3. Design initial database schema
 4. Start BaseAgent implementation
 
+## 🚀 Upcoming Milestone
+
+**Week 3: Early Production Deployment** 🆕
+- Deploy to Digital Ocean droplet ($24/month)
+- Live API at https://api.consensus.net
+- GitHub Actions CI/CD pipeline
+- Public demo available for LinkedIn visibility
+
 ## 🎯 Key Metrics
 
 | Metric | Target | Current | Status |

@@ -47,6 +47,13 @@ Key innovations: Dynamic agent spawning, adversarial verification, swarm bursts,
 - **Databases**: PostgreSQL + pgvector, Redis
 - **Frontend**: Next.js 14, TypeScript, TailwindCSS
 - **Infrastructure**: Docker, Digital Ocean droplet
+- **Deployment**: GitHub Actions CI/CD (from Week 3!) 🆕
+
+### Deployment Strategy 🆕
+- **Week 3**: Early production deployment on DO
+- **Continuous Deployment**: Every push to main goes live
+- **Progressive Enhancement**: Add features to live system
+- **Budget-conscious**: Start at $39/month, scale as needed
 
 ### Unique Features
 1. **Dynamic Agent Spawning** - Meta-agent creates specialists on-demand

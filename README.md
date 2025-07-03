@@ -26,13 +26,17 @@ ConsensusNet is an innovative multi-agent AI system that leverages collective in
 git clone https://github.com/hretheum/consensus.net
 cd consensus.net
 
-# Run setup script
+# Run setup script (coming soon)
 ./scripts/setup.sh
 
 # Start development server
 docker-compose up -d
 python src/main.py
 ```
+
+### 🌐 Live Demo (Coming Week 3!)
+- API: https://api.consensus.net/verify
+- Docs: https://api.consensus.net/docs
 
 ## 📚 Documentation
 
