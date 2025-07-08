@@ -11,13 +11,19 @@
 │
 ├── 📁 docs/
 │   ├── 📁 architecture/
-│   │   ├── 📄 ARCHITECTURE_RECOMMENDATION.md  # (move from root)
-│   │   ├── 📄 system-design.md               # High-level diagrams
-│   │   ├── 📄 component-specifications.md    # Detailed component docs
-│   │   └── 📄 data-flow.md                   # How data moves through system
+│   │   ├── 📄 ARCHITECTURE_RECOMMENDATION.md    # ECAMAN system architecture ⭐
+│   │   ├── 📄 core-agent-architecture.md        # Individual agent internals ⭐
+│   │   ├── 📄 agent-data-flow-diagram.md        # Agent component interactions ⭐
+│   │   ├── 📄 container-first-architecture.md   # Container deployment architecture
+│   │   ├── 📄 system-design.md                  # High-level diagrams
+│   │   ├── 📄 component-specifications.md       # Detailed component docs
+│   │   └── 📄 data-flow.md                      # How data moves through system
 │   │
 │   ├── 📁 research/
 │   │   ├── 📄 agent-architectures-research.md # (rename from compass_artifact_*.md)
+│   │   ├── 📄 llm-selection-analysis.md       # ✅ LLM research & selection (Task 1.1.1)
+│   │   ├── 📄 llm-benchmarks-technical.md     # ✅ Technical LLM benchmarks
+│   │   ├── 📄 llm-research-summary.md         # ✅ Executive summary of LLM selection
 │   │   ├── 📄 consensus-algorithms.md         # Research on consensus mechanisms
 │   │   ├── 📄 benchmarks.md                   # Performance comparisons
 │   │   └── 📄 paper-drafts/                   # Academic paper drafts
