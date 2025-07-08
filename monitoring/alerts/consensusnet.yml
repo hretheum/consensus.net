@@ -1,0 +1,160 @@
+groups:
+  - name: consensusnet_alerts
+    interval: 30s
+    rules:
+      # API Health Alerts
+      - alert: APIDown
+        expr: up{job="consensusnet-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "ConsensusNet API is down"
+          description: "ConsensusNet API has been down for more than 2 minutes."
+
+      - alert: HighAPIResponseTime
+        expr: consensusnet_api_response_time_seconds > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API response time"
+          description: "API response time is above 5 seconds for 5 minutes. Current: {{ $value }}s"
+
+      - alert: HighAPIErrorRate
+        expr: rate(consensusnet_api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is above 10% for 5 minutes. Current: {{ $value | humanizePercentage }}"
+
+      # Resource Alerts
+      - alert: HighCPUUsage
+        expr: consensusnet_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is above 80% for 5 minutes. Current: {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: consensusnet_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 85% for 5 minutes. Current: {{ $value }}%"
+
+      - alert: DiskSpaceLow
+        expr: consensusnet_disk_free_bytes < 5e+9  # 5GB
+        for: 10m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 5GB of disk space remaining. Current: {{ $value | humanize1024 }}B"
+
+      # Queue Alerts
+      - alert: HighQueueSize
+        expr: consensusnet_queue_size > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: queue
+        annotations:
+          summary: "High job queue size"
+          description: "Job queue has more than 1000 pending jobs for 10 minutes. Current: {{ $value }}"
+
+      - alert: QueueProcessingSlow
+        expr: consensusnet_queue_processing_time_seconds > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: queue
+        annotations:
+          summary: "Slow queue processing"
+          description: "Average queue processing time is above 30 seconds. Current: {{ $value }}s"
+
+      # Cache Alerts
+      - alert: LowCacheHitRate
+        expr: consensusnet_cache_hit_rate < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is below 50% for 15 minutes. Current: {{ $value | humanizePercentage }}"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache server has been down for more than 2 minutes."
+
+      # Database Alerts
+      - alert: DatabaseDown
+        expr: up{job="postgresql"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database has been down for more than 2 minutes."
+
+      - alert: DatabaseConnectionsHigh
+        expr: consensusnet_db_connections_active > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database connections"
+          description: "Active database connections above 80 for 5 minutes. Current: {{ $value }}"
+
+      # Circuit Breaker Alerts
+      - alert: CircuitBreakerOpen
+        expr: consensusnet_circuit_breaker_state == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+        annotations:
+          summary: "Circuit breaker is open"
+          description: "Circuit breaker {{ $labels.name }} has been open for 5 minutes"
+
+      # Agent Alerts
+      - alert: AgentPoolEmpty
+        expr: consensusnet_agents_available == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: agents
+        annotations:
+          summary: "No agents available"
+          description: "Agent pool is empty - no agents available for processing"
+
+      - alert: HighAgentErrorRate
+        expr: rate(consensusnet_agent_errors_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: agents
+        annotations:
+          summary: "High agent error rate"
+          description: "Agent error rate is above 20% for 5 minutes. Current: {{ $value | humanizePercentage }}"
