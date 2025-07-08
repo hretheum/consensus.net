@@ -14,11 +14,11 @@ from enum import Enum
 from typing import Dict, List, Optional, Any, Callable, Set, Tuple
 from collections import defaultdict
 
-from agents.base_agent import BaseAgent
-from agents.simple_agent import SimpleAgent
-from agents.enhanced_agent import EnhancedAgent
-from agents.verification_result import VerificationResult
-from agents.agent_models import ProcessedClaim, ClaimComplexity
+from ...agents.base_agent import BaseAgent
+from ...agents.simple_agent import SimpleAgent
+from ...agents.enhanced_agent import EnhancedAgent
+from ...agents.verification_result import VerificationResult
+from ...agents.agent_models import ProcessedClaim, ClaimComplexity
 
 from consensus.communication.message_passing import (
     AgentMessage, MessageType, MessagePriority, message_bus,
@@ -186,6 +186,11 @@ class AgentPoolManager:
         Returns:
             Aggregated verification result from multiple agents
         """
+        # Ensure we're initialized
+        if self.status == PoolStatus.INITIALIZING:
+            print("🔄 Pool not initialized, initializing now...")
+            await self.initialize()
+        
         # Create verification task
         task = VerificationTask(
             claim=claim,
@@ -194,11 +199,18 @@ class AgentPoolManager:
             required_capabilities=required_capabilities or []
         )
         
+        print(f"🎯 Starting multi-agent verification for: {claim[:50]}...")
+        
         # Process the claim
         task.processed_claim = self._process_claim(claim)
+        print(f"📝 Processed claim - domain: {task.processed_claim.domain}, complexity: {task.processed_claim.complexity.value}")
         
-        # Add to queue
-        await self._enqueue_task(task)
+        # Add task to active tasks  
+        self.active_tasks[task.task_id] = task
+        self.pool_stats["total_tasks"] += 1
+        
+        # Instead of using queue, assign agents directly for immediate processing
+        await self._assign_agents_to_task(task)
         
         # Wait for completion
         return await self._wait_for_task_completion(task)
@@ -378,27 +390,40 @@ class AgentPoolManager:
         """Wait for a task to complete and return aggregated result."""
         timeout_time = datetime.now() + timedelta(seconds=task.timeout_seconds)
         
+        print(f"⏳ Waiting for task {task.task_id} completion (timeout: {task.timeout_seconds}s)")
+        
+        check_count = 0
         while datetime.now() < timeout_time:
+            check_count += 1
+            
+            if check_count % 50 == 0:  # Log every 5 seconds
+                print(f"📊 Task {task.task_id} status: {task.status.value}, results: {len(task.agent_results)}/{task.target_agent_count}")
+            
             if task.status == TaskStatus.COMPLETED:
+                print(f"🎉 Task {task.task_id} completed! Aggregating results...")
                 # Aggregate results
                 if not task.aggregated_result:
                     task.aggregated_result = self._aggregate_results(task)
                 return task.aggregated_result
             elif task.status == TaskStatus.FAILED:
+                print(f"❌ Task {task.task_id} failed")
                 raise RuntimeError(f"Task {task.task_id} failed")
             
             await asyncio.sleep(0.1)  # Check every 100ms
         
         # Timeout occurred
+        print(f"⏰ Task {task.task_id} timed out after {task.timeout_seconds}s")
         task.status = TaskStatus.TIMEOUT
         self.pool_stats["failed_tasks"] += 1
         
         # Return partial results if any
         if task.agent_results:
+            print(f"🔄 Returning partial results ({len(task.agent_results)} results)")
             task.aggregated_result = self._aggregate_results(task)
             return task.aggregated_result
         
         # No results at all
+        print(f"💥 Task {task.task_id} timed out with no results")
         raise TimeoutError(f"Task {task.task_id} timed out with no results")
     
     def _aggregate_results(self, task: VerificationTask) -> VerificationResult:
@@ -483,13 +508,16 @@ class AgentPoolManager:
     async def _assign_agents_to_task(self, task: VerificationTask) -> None:
         """Assign agents to a verification task."""
         try:
+            print(f"🔍 Assigning agents to task {task.task_id}, target: {task.target_agent_count}")
+            
             # Find suitable agents
             suitable_agents = self._find_suitable_agents(task)
+            print(f"📋 Found {len(suitable_agents)} suitable agents: {[a.agent_id for a in suitable_agents]}")
             
             if not suitable_agents:
                 task.status = TaskStatus.FAILED
                 self.pool_stats["failed_tasks"] += 1
-                print(f"No suitable agents found for task {task.task_id}")
+                print(f"❌ No suitable agents found for task {task.task_id}")
                 return
             
             # Assign agents (up to target count)
@@ -499,29 +527,35 @@ class AgentPoolManager:
                     break
                 
                 agent_id = agent_profile.agent_id
+                print(f"🤖 Checking agent {agent_id}, active: {agent_id in self.active_agents}")
+                
                 if agent_id in self.active_agents:
                     task.assigned_agents.append(agent_id)
                     assigned_count += 1
                     
                     # Send verification request
+                    print(f"📤 Sending verification request to {agent_id}")
                     await self._send_verification_request(task, agent_id)
             
             if assigned_count > 0:
                 task.status = TaskStatus.ASSIGNED
-                print(f"Assigned {assigned_count} agents to task {task.task_id}")
+                print(f"✅ Assigned {assigned_count} agents to task {task.task_id}: {task.assigned_agents}")
             else:
                 task.status = TaskStatus.FAILED
                 self.pool_stats["failed_tasks"] += 1
+                print(f"❌ Failed to assign any agents to task {task.task_id}")
                 
         except Exception as e:
-            print(f"Error assigning agents to task {task.task_id}: {e}")
+            print(f"💥 Error assigning agents to task {task.task_id}: {e}")
             task.status = TaskStatus.FAILED
             self.pool_stats["failed_tasks"] += 1
     
     def _find_suitable_agents(self, task: VerificationTask) -> List[AgentProfile]:
         """Find agents suitable for a task."""
         if not task.processed_claim:
-            return []
+            # Fallback if no processed claim
+            available_agents = list(self.agent_profiles.values())
+            return available_agents[:task.target_agent_count]
         
         # Use agent registry to find suitable agents
         suitable_agents = self.agent_registry.find_best_agent_for_claim(
@@ -532,10 +566,20 @@ class AgentPoolManager:
         )
         
         if suitable_agents:
-            return [suitable_agents]  # Return as list for now
+            # Add more agents if available
+            all_suitable = [suitable_agents]
+            remaining_needed = task.target_agent_count - 1
+            
+            if remaining_needed > 0:
+                # Get additional agents of same or different types
+                additional = self.agent_registry.find_agents_by_type(AgentType.GENERALIST, limit=remaining_needed)
+                all_suitable.extend(additional)
+            
+            return all_suitable[:task.target_agent_count]
         
         # Fallback: get any available agents
-        return self.agent_registry.find_agents_by_type(AgentType.GENERALIST, limit=task.target_agent_count)
+        available_agents = list(self.agent_profiles.values())
+        return available_agents[:task.target_agent_count]
     
     async def _send_verification_request(self, task: VerificationTask, agent_id: str) -> None:
         """Send verification request to specific agent."""
@@ -569,25 +613,36 @@ class AgentPoolManager:
     async def _handle_verification_result(self, message: AgentMessage) -> None:
         """Handle verification result from agent."""
         task_id = message.conversation_id
+        agent_id = message.sender_id
+        
+        print(f"📨 Received verification result from {agent_id} for task {task_id}")
+        
         if not task_id or task_id not in self.active_tasks:
+            print(f"⚠️ Task {task_id} not found in active tasks")
             return
         
         task = self.active_tasks[task_id]
-        agent_id = message.sender_id
         
         # Extract verification result
         result_data = message.payload.get("verification_result")
         if result_data:
-            result = VerificationResult.model_validate(result_data)
-            task.add_result(agent_id, result)
-            
-            print(f"Received result from agent {agent_id} for task {task_id}")
-            
-            # Update agent performance
-            if agent_id in self.agent_profiles:
-                profile = self.agent_profiles[agent_id]
-                response_time = (datetime.now() - task.created_at).total_seconds()
-                profile.update_performance(response_time, True)
+            try:
+                result = VerificationResult.model_validate(result_data)
+                task.add_result(agent_id, result)
+                
+                print(f"✅ Added result from {agent_id}: {result.verdict} (confidence: {result.confidence:.2f})")
+                print(f"📊 Task {task_id} now has {len(task.agent_results)}/{task.target_agent_count} results")
+                
+                # Update agent performance
+                if agent_id in self.agent_profiles:
+                    profile = self.agent_profiles[agent_id]
+                    response_time = (datetime.now() - task.created_at).total_seconds()
+                    profile.update_performance(response_time, True)
+                    
+            except Exception as e:
+                print(f"💥 Error processing result from {agent_id}: {e}")
+        else:
+            print(f"⚠️ No verification_result in payload from {agent_id}")
     
     async def _handle_agent_heartbeat(self, message: AgentMessage) -> None:
         """Handle heartbeat from agent."""

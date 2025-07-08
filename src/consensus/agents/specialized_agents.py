@@ -14,10 +14,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from abc import ABC, abstractmethod
 
-from agents.enhanced_agent import EnhancedAgent
-from agents.verification_result import VerificationResult
-from agents.agent_models import ProcessedClaim, Evidence, EvidenceBundle
-from services.evidence_service import EvidenceService
+from ...agents.enhanced_agent import EnhancedAgent
+from ...agents.verification_result import VerificationResult
+from ...agents.agent_models import ProcessedClaim, Evidence, EvidenceBundle
+from ...services.evidence_service import EvidenceService
 
 from consensus.communication.message_passing import (
     AgentMessage, MessageType, message_bus, create_verification_result

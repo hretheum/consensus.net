@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
 
-from agents.verification_result import VerificationResult
+from ...agents.verification_result import VerificationResult
 
 
 class ConsensusMethod(Enum):

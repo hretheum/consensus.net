@@ -17,7 +17,7 @@ from enum import Enum
 from typing import Dict, List, Any, Optional, Callable, Set
 import json
 
-from agents.verification_result import VerificationResult
+from ...agents.verification_result import VerificationResult
 
 
 class MessageType(Enum):

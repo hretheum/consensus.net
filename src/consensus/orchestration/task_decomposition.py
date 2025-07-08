@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 from enum import Enum
 
-from agents.agent_models import ProcessedClaim
+from ...agents.agent_models import ProcessedClaim
 
 
 class TaskType(Enum):
