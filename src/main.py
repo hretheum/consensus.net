@@ -1143,6 +1143,100 @@ async def get_phase4_status():
         )
 
 
+# Import Prometheus metrics support
+from src.consensus.production.prometheus_metrics import (
+    setup_prometheus_metrics, get_metrics, get_metrics_content_type,
+    record_api_request, record_api_error
+)
+from starlette.responses import Response
+import time as time_module
+
+
+# Setup Prometheus metrics on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize Prometheus metrics on startup"""
+    try:
+        from src.consensus.production.monitoring import metrics_collector, health_checker, setup_default_health_checks
+        
+        # Setup default health checks
+        setup_default_health_checks()
+        
+        # Start monitoring
+        await metrics_collector.start_collection()
+        await health_checker.start_monitoring()
+        
+        # Setup Prometheus metrics
+        setup_prometheus_metrics(metrics_collector, health_checker)
+        
+        logger.info("✅ Prometheus metrics initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize Prometheus metrics: {e}")
+
+
+# Middleware to track API metrics
+@app.middleware("http")
+async def track_metrics(request, call_next):
+    """Track API request metrics for Prometheus"""
+    start_time = time_module.time()
+    
+    # Skip metrics endpoint to avoid recursion
+    if request.url.path == "/metrics":
+        return await call_next(request)
+    
+    try:
+        response = await call_next(request)
+        duration = time_module.time() - start_time
+        
+        # Record successful request
+        record_api_request(
+            method=request.method,
+            endpoint=request.url.path,
+            status=response.status_code,
+            duration=duration
+        )
+        
+        # Also record in metrics collector for internal use
+        from src.consensus.production.monitoring import metrics_collector
+        metrics_collector.record_request(duration, response.status_code < 400)
+        
+        return response
+        
+    except Exception as e:
+        duration = time_module.time() - start_time
+        
+        # Record error
+        record_api_error(
+            method=request.method,
+            endpoint=request.url.path,
+            error_type=type(e).__name__
+        )
+        
+        # Also record in metrics collector
+        from src.consensus.production.monitoring import metrics_collector
+        metrics_collector.record_request(duration, False)
+        
+        raise
+
+
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """Expose metrics in Prometheus format"""
+    try:
+        metrics_data = get_metrics()
+        return Response(
+            content=metrics_data,
+            media_type=get_metrics_content_type()
+        )
+    except Exception as e:
+        logger.error(f"Failed to generate metrics: {e}")
+        return Response(
+            content=f"# Error generating metrics: {str(e)}\n",
+            media_type="text/plain",
+            status_code=500
+        )
+
+
 # This will be used when running directly (not in container)
 if __name__ == "__main__":
     uvicorn.run(

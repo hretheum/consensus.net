@@ -171,6 +171,10 @@ ufw default allow outgoing
 ufw allow ssh
 ufw allow http
 ufw allow https
+# Allow Grafana (restrict to specific IPs in production)
+ufw allow 3000/tcp comment 'Grafana'
+# Allow Prometheus (restrict to specific IPs in production)
+ufw allow 9090/tcp comment 'Prometheus'
 ufw --force enable
 
 # Setup swap (4GB)
@@ -244,6 +248,10 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    labels:
+      - "prometheus.io/scrape=true"
+      - "prometheus.io/port=8000"
+      - "prometheus.io/path=/metrics"
 
   postgres:
     image: postgres:15-alpine
@@ -272,8 +280,79 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts:/etc/prometheus/alerts:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "127.0.0.1:9100:9100"
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    ports:
+      - "127.0.0.1:9121:9121"
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      - DATA_SOURCE_NAME=postgresql://consensus_user:${DB_PASSWORD}@postgres:5432/consensus_prod?sslmode=disable
+    ports:
+      - "127.0.0.1:9187:9187"
+    restart: unless-stopped
+
 volumes:
   redis_data:
+  prometheus_data:
+  grafana_data:
 EOF
 
 # Create .env file
@@ -282,6 +361,7 @@ cat > /tmp/.env.prod << EOF
 ENVIRONMENT=production
 DB_PASSWORD=$(openssl rand -base64 32)
 SECRET_KEY=$(openssl rand -hex 32)
+GRAFANA_PASSWORD=$(openssl rand -base64 16)
 EOF
 
 # Copy files to server
@@ -398,6 +478,8 @@ echo "IP Address: $DROPLET_IP"
 echo "API URL: http://$DROPLET_IP"
 echo "API Health: http://$DROPLET_IP/api/health"
 echo "API Docs: http://$DROPLET_IP/api/docs"
+echo "Prometheus: http://$DROPLET_IP:9090"
+echo "Grafana: http://$DROPLET_IP:3000 (admin/check .env file)"
 echo ""
 echo "SSH Access: ssh root@$DROPLET_IP"
 echo ""
