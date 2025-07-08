@@ -12,6 +12,7 @@ import os
 from api.models import VerificationRequest, VerificationResponse, ErrorResponse
 from api.rate_limiter import rate_limit_middleware
 from services.verification_service import verification_service
+from api.endpoints.bugbot import router as bugbot_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -33,6 +34,9 @@ app.add_middleware(
 
 # Add rate limiting middleware
 app.middleware("http")(rate_limit_middleware)
+
+# Include routers
+app.include_router(bugbot_router, prefix="/api")
 
 @app.get("/")
 async def root():
