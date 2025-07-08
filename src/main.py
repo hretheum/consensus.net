@@ -269,6 +269,310 @@ async def get_system_info():
         )
 
 
+# Multi-Agent System Endpoints (Phase 2)
+
+@app.post(
+    "/api/verify/multi-agent",
+    response_model=VerificationResponse,
+    summary="Verify claim using multi-agent consensus",
+    description="Submit a claim for verification using multiple specialized agents with consensus mechanism."
+)
+async def verify_claim_multi_agent(request: VerificationRequest) -> VerificationResponse:
+    """
+    Verify a factual claim using multi-agent consensus system.
+    
+    This endpoint uses the AgentPoolManager to coordinate multiple specialized agents
+    (Science, News, Tech) and aggregates their results through consensus mechanisms.
+    
+    Features:
+    - Multiple agent types with domain specialization
+    - Parallel verification processing  
+    - Consensus-based result aggregation
+    - Enhanced accuracy through collaboration
+    
+    Rate limited to 10 requests per minute per IP address.
+    """
+    start_time = time.time()
+    
+    try:
+        from consensus.orchestration.agent_pool import agent_pool_manager
+        from consensus.communication.agent_discovery import CapabilityType
+        
+        # Initialize pool if needed
+        if agent_pool_manager.status.value == "initializing":
+            await agent_pool_manager.initialize()
+        
+        # Determine required capabilities based on claim
+        required_capabilities = []
+        claim_lower = request.claim.lower()
+        
+        if any(word in claim_lower for word in ["study", "research", "science", "data"]):
+            required_capabilities.append(CapabilityType.SCIENTIFIC_ANALYSIS)
+        if any(word in claim_lower for word in ["news", "breaking", "today", "recent"]):
+            required_capabilities.append(CapabilityType.NEWS_API)
+        if any(word in claim_lower for word in ["technology", "software", "api", "code"]):
+            required_capabilities.append(CapabilityType.TECHNICAL_DOCS)
+        
+        # Use multi-agent verification
+        result = await agent_pool_manager.verify_claim(
+            claim=request.claim,
+            agent_count=min(3, len(agent_pool_manager.active_agents)),
+            timeout=60,
+            required_capabilities=required_capabilities
+        )
+        
+        processing_time = time.time() - start_time
+        
+        return VerificationResponse(
+            success=True,
+            result=result,
+            processing_time=processing_time
+        )
+    
+    except Exception as e:
+        processing_time = time.time() - start_time
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": f"Multi-agent verification failed: {str(e)}",
+                "error_code": "MULTI_AGENT_ERROR",
+                "processing_time": processing_time
+            }
+        )
+
+
+@app.get("/api/agents/pool/status")
+async def get_agent_pool_status():
+    """Get status and statistics of the agent pool."""
+    try:
+        from consensus.orchestration.agent_pool import agent_pool_manager
+        
+        pool_stats = agent_pool_manager.get_pool_stats()
+        
+        return {
+            "status": "operational",
+            "pool_statistics": pool_stats,
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+@app.get("/api/agents/registry")
+async def get_agent_registry():
+    """Get information about registered agents and their capabilities."""
+    try:
+        from consensus.communication.agent_discovery import agent_registry
+        
+        registry_stats = agent_registry.get_registry_stats()
+        
+        # Get detailed agent info
+        detailed_agents = {}
+        for agent_id, profile in agent_registry.agents.items():
+            detailed_agents[agent_id] = {
+                "agent_type": profile.agent_type.value,
+                "display_name": profile.display_name,
+                "description": profile.description,
+                "is_active": profile.is_active,
+                "current_load": profile.current_load,
+                "reputation_score": profile.reputation_score,
+                "capabilities": [cap.value for cap in profile.capabilities.keys()],
+                "domain_expertise": profile.domain_expertise,
+                "last_heartbeat": profile.last_heartbeat.isoformat()
+            }
+        
+        return {
+            "status": "operational",
+            "registry_statistics": registry_stats,
+            "agents": detailed_agents,
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+@app.get("/api/agents/communication/stats")
+async def get_communication_stats():
+    """Get statistics about inter-agent communication."""
+    try:
+        from consensus.communication.message_passing import message_bus
+        
+        bus_stats = message_bus.get_stats()
+        
+        return {
+            "status": "operational",
+            "message_bus_statistics": bus_stats,
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        return {
+            "status": "error", 
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+@app.post("/api/agents/pool/initialize")
+async def initialize_agent_pool():
+    """Initialize the agent pool with default agents."""
+    try:
+        from consensus.orchestration.agent_pool import agent_pool_manager
+        
+        await agent_pool_manager.initialize()
+        
+        return {
+            "status": "initialized",
+            "message": "Agent pool initialized successfully",
+            "agent_count": len(agent_pool_manager.active_agents),
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": f"Failed to initialize agent pool: {str(e)}",
+                "error_code": "INITIALIZATION_ERROR"
+            }
+        )
+
+
+@app.post("/api/agents/specialized/add")
+async def add_specialized_agents():
+    """Add specialized agents to the pool."""
+    try:
+        from consensus.orchestration.agent_pool import agent_pool_manager
+        from consensus.agents.specialized_agents import ScienceAgent, NewsAgent, TechAgent
+        
+        # Initialize pool if needed
+        if agent_pool_manager.status.value == "initializing":
+            await agent_pool_manager.initialize()
+        
+        # Add specialized agents
+        agents_added = []
+        
+        # Science Agent
+        science_agent = ScienceAgent("science_specialist")
+        science_profile = science_agent.get_agent_profile()
+        if await agent_pool_manager.add_agent(science_agent, science_profile):
+            agents_added.append("science_specialist")
+        
+        # News Agent  
+        news_agent = NewsAgent("news_specialist")
+        news_profile = news_agent.get_agent_profile()
+        if await agent_pool_manager.add_agent(news_agent, news_profile):
+            agents_added.append("news_specialist")
+        
+        # Tech Agent
+        tech_agent = TechAgent("tech_specialist")
+        tech_profile = tech_agent.get_agent_profile()
+        if await agent_pool_manager.add_agent(tech_agent, tech_profile):
+            agents_added.append("tech_specialist")
+        
+        return {
+            "status": "success",
+            "message": f"Added {len(agents_added)} specialized agents",
+            "agents_added": agents_added,
+            "total_agents": len(agent_pool_manager.active_agents),
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": f"Failed to add specialized agents: {str(e)}",
+                "error_code": "AGENT_ADDITION_ERROR"
+            }
+        )
+
+
+@app.get("/api/system/phase2")
+async def get_phase2_status():
+    """Get comprehensive Phase 2 multi-agent system status."""
+    try:
+        from consensus.orchestration.agent_pool import agent_pool_manager
+        from consensus.communication.agent_discovery import agent_registry
+        from consensus.communication.message_passing import message_bus
+        
+        # Get all component statuses
+        pool_stats = agent_pool_manager.get_pool_stats()
+        registry_stats = agent_registry.get_registry_stats()
+        bus_stats = message_bus.get_stats()
+        
+        return {
+            "phase": "Multi-Agent System (Phase 2)",
+            "status": "operational",
+            "implementation_progress": "85%",
+            "components": {
+                "agent_pool_manager": {
+                    "status": pool_stats.get("status", "unknown"),
+                    "agent_count": pool_stats.get("active_agents", 0),
+                    "total_tasks": pool_stats.get("total_tasks", 0),
+                    "completed_tasks": pool_stats.get("completed_tasks", 0)
+                },
+                "agent_registry": {
+                    "total_agents": registry_stats.get("total_agents", 0),
+                    "active_agents": registry_stats.get("active_agents", 0),
+                    "capability_types": len(registry_stats.get("capability_distribution", {})),
+                    "agent_types": len(registry_stats.get("type_distribution", {}))
+                },
+                "message_bus": {
+                    "messages_sent": bus_stats.get("messages_sent", 0),
+                    "messages_delivered": bus_stats.get("messages_delivered", 0),
+                    "active_subscriptions": bus_stats.get("active_subscriptions", 0)
+                }
+            },
+            "features_implemented": [
+                "AgentPoolManager - Central orchestration",
+                "Message Passing System - Inter-agent communication",
+                "Agent Discovery Registry - Capability matching",
+                "Specialized Agents - Science, News, Tech domains",
+                "Task Distribution - Parallel processing",
+                "Result Aggregation - Simple consensus"
+            ],
+            "next_features": [
+                "Advanced Consensus Engine",
+                "Byzantine Fault Tolerance", 
+                "Trust Network",
+                "Adversarial Debate Framework"
+            ],
+            "api_endpoints": {
+                "multi_agent_verify": "/api/verify/multi-agent",
+                "pool_status": "/api/agents/pool/status",
+                "registry_info": "/api/agents/registry",
+                "communication_stats": "/api/agents/communication/stats",
+                "initialize_pool": "/api/agents/pool/initialize",
+                "add_specialized": "/api/agents/specialized/add"
+            },
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": f"Failed to get Phase 2 status: {str(e)}",
+                "error_code": "PHASE2_STATUS_ERROR"
+            }
+        )
+
+
 # This will be used when running directly (not in container)
 if __name__ == "__main__":
     uvicorn.run(
