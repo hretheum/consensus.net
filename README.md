@@ -18,6 +18,7 @@ ConsensusNet is an innovative multi-agent AI system that leverages collective in
 - **Byzantine Fault Tolerance**: Robust consensus even with unreliable agents
 - **Trust Networks**: Graph-based reputation system for agent credibility
 - **Real-time Processing**: WebSocket support for live verification updates
+- **BugBot Integration**: Automatic error detection and management system
 
 ## 🚀 Quick Start
 
@@ -55,6 +56,8 @@ curl http://localhost:8000/api/health
 - [Development Setup](docs/development/setup-guide.md)
 - [API Reference](docs/api/api-design.md)
 - [Research Background](docs/research/agent-architectures-research.md)
+- [BugBot Documentation](docs/BUGBOT.md) - Automatic error detection system
+- [BugBot Integration Guide](docs/BUGBOT_INTEGRATION_GUIDE.md)
 
 ## 🏗️ Architecture
 
@@ -66,7 +69,19 @@ Meta-Agent Orchestrator
 Specialized Agents → Adversarial Debates → Trust-Weighted Consensus
 ```
 
-## 📈 Project Status
+## �️ Developer Tools
+
+### 🐛 BugBot - Automatic Error Detection
+BugBot is an integrated error monitoring system that automatically:
+- Scans application logs for errors and exceptions
+- Analyzes root causes and suggests fixes
+- Creates GitHub issues for critical errors
+- Sends notifications via Slack, Discord, Email, Teams
+- Provides API endpoints for error statistics
+
+See [BugBot Documentation](docs/BUGBOT.md) and [Integration Examples](examples/)
+
+## �📈 Project Status
 
 **Current Phase**: Phase 1 - Foundation Development (Week 1/12)  
 **Expected MVP**: April 2025  
