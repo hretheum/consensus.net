@@ -1,0 +1,60 @@
+title: "ConsensusNet Documentation"
+description: "Revolutionary multi-agent AI system for decentralized fact-checking using collective intelligence"
+baseurl: "/consensus.net"
+url: "https://hretheum.github.io"
+
+# Jekyll configuration
+markdown: kramdown
+highlighter: rouge
+theme: minima
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Exclude files
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+
+# GitHub Pages settings
+github:
+  repository_url: "https://github.com/hretheum/consensus.net"
+  repository_name: "consensus.net"
+  owner_name: "hretheum"
+
+# Navigation
+navigation:
+  - title: "Documentation"
+    url: "/docs/"
+  - title: "API Reference"
+    url: "http://localhost:8000/api/docs"
+    external: true
+  - title: "GitHub"
+    url: "https://github.com/hretheum/consensus.net"
+    external: true
+
+# Languages
+languages:
+  - code: "en"
+    name: "English"
+    flag: "🇺🇸"
+  - code: "pl" 
+    name: "Polski"
+    flag: "🇵🇱"
+
+# SEO
+author: "hretheum"
+twitter:
+  username: "hretheum"
+  card: summary_large_image
+
+# Google Analytics (uncomment and add your ID)
+# google_analytics: G-XXXXXXXXXX

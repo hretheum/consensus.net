@@ -1,0 +1,13 @@
+source "https://rubygems.org"
+
+# Use GitHub Pages gems for local development
+gem "github-pages", group: :jekyll_plugins
+
+# Optional: Add jekyll explicitly
+gem "jekyll", "~> 3.9.0"
+
+# Performance booster for Windows
+gem "wdm", "~> 0.1.1", :platforms => [:mingw, :x64_mingw, :mswin]
+
+# Lock `http_parser.rb` gem to `v0.6.x` on JRuby builds since newer versions are not supported
+gem "http_parser.rb", "~> 0.6.0", :platforms => [:jruby]
