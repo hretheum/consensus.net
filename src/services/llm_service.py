@@ -40,10 +40,9 @@ class LLMService:
     """
     Production LLM service with real API connections.
     
-    Implements the 3-tier LLM strategy:
-    - Tier 1: GPT-4o-mini (primary, cost-effective)
-    - Tier 2: Claude 3 Haiku (fallback, better reasoning)
-    - Tier 3: Llama 3.2 (local fallback, privacy)
+    Implements the 2-tier LLM strategy:
+    - Tier 1: OpenAI GPT-4.1 models (primary, cost-effective options)
+    - Tier 2: Anthropic Claude models (fallback, specialized reasoning)
     """
     
     def __init__(self):
@@ -135,8 +134,8 @@ Format your response as JSON with the following structure:
         return base_prompt
     
     async def call_openai(self, request: LLMRequest) -> LLMResponse:
-        """Call OpenAI GPT-4o-mini API."""
-        config = LLM_CONFIGS[LLMModel.GPT_5]
+        """Call OpenAI GPT-4.1 API."""
+        config = LLM_CONFIGS[LLMModel.GPT_4_1_MINI]
         settings = get_provider_settings(LLMProvider.OPENAI)
         
         headers = {
@@ -186,8 +185,8 @@ Format your response as JSON with the following structure:
             raise LLMAPIError(f"OpenAI API error: {str(e)}")
     
     async def call_anthropic(self, request: LLMRequest) -> LLMResponse:
-        """Call Anthropic Claude 3 Haiku API."""
-        config = LLM_CONFIGS[LLMModel.CLAUDE_4_SONNET]
+        """Call Anthropic Claude Sonnet 4 API."""
+        config = LLM_CONFIGS[LLMModel.CLAUDE_SONNET_4]
         settings = get_provider_settings(LLMProvider.ANTHROPIC)
         
         headers = {
@@ -389,16 +388,16 @@ Format your response as JSON with the following structure:
         if evidence_quality and evidence_quality < 0.65:
             # For low quality evidence, try better models first
             model_chain = [
-                LLMModel.CLAUDE_4_SONNET,  # Best reasoning
-                LLMModel.GPT_5,     # Good balance
-                LLMModel.LLAMA_4        # Local fallback
+                LLMModel.CLAUDE_OPUS_4,  # Best reasoning
+                LLMModel.GPT_4_1,     # Good balance
+                LLMModel.GPT_4_1_MINI        # Fast fallback
             ]
         else:
             # Normal fallback chain
             model_chain = [primary_model, get_fallback_model(primary_model)]
             if evidence_quality and evidence_quality > 0.8:
                 # High quality evidence - add cheaper model as first option
-                model_chain = [LLMModel.GPT_5] + model_chain
+                model_chain = [LLMModel.GPT_4_1_NANO] + model_chain
         
         # Remove duplicates while preserving order
         seen = set()

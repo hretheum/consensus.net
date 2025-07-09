@@ -255,7 +255,7 @@ class VerificationLogic:
             prompt = self.llm.generate_verification_prompt(claim)
             llm_request = LLMRequest(
                 prompt=prompt,
-                model="gpt-4o-mini",
+                model="gpt-4.1-mini",  # Updated to correct 2025 model
                 parameters={}
             )
             llm_response = self.llm.call_llm(llm_request)

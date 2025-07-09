@@ -2,8 +2,8 @@
 LLM Configuration for ConsensusNet Agent System
 
 Based on research documented in docs/research/llm-selection-analysis.md
-Implements the hybrid three-tier LLM strategy.
-Updated for July 2025 with latest model releases.
+Implements the hybrid two-tier LLM strategy.
+Updated for July 2025 with correct model releases.
 """
 
 from dataclasses import dataclass
@@ -15,14 +15,15 @@ class LLMProvider(Enum):
     """Supported LLM providers."""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
-    OLLAMA = "ollama"
 
 
 class LLMModel(Enum):
     """Available LLM models with their provider mappings (July 2025)."""
-    GPT_5 = "gpt-5"
-    CLAUDE_4_SONNET = "claude-4-sonnet-20250401"
-    LLAMA_4 = "llama4"
+    GPT_4_1 = "gpt-4.1"
+    GPT_4_1_MINI = "gpt-4.1-mini"
+    GPT_4_1_NANO = "gpt-4.1-nano"
+    CLAUDE_OPUS_4 = "claude-opus-4-20250401"
+    CLAUDE_SONNET_4 = "claude-sonnet-4-20250401"
 
 
 @dataclass
@@ -46,49 +47,79 @@ class LLMConfig:
 
 # Model configurations based on 2025 research findings
 LLM_CONFIGS = {
-    LLMModel.GPT_5: LLMConfig(
-        model=LLMModel.GPT_5,
+    LLMModel.GPT_4_1: LLMConfig(
+        model=LLMModel.GPT_4_1,
+        provider=LLMProvider.OPENAI,
+        max_tokens=4000,
+        temperature=0.1,
+        max_requests_per_minute=5000,
+        cost_per_input_token=0.10,  # $0.10 per 1M tokens
+        cost_per_output_token=0.40,  # $0.40 per 1M tokens 
+        average_latency_ms=650,
+        context_window=200000,
+        accuracy_score=0.95,
+        reasoning_quality=4.7,
+        confidence_calibration=0.91
+    ),
+    
+    LLMModel.GPT_4_1_MINI: LLMConfig(
+        model=LLMModel.GPT_4_1_MINI,
         provider=LLMProvider.OPENAI,
         max_tokens=4000,
         temperature=0.1,
         max_requests_per_minute=15000,
-        cost_per_input_token=0.08,  # $0.08 per 1M tokens (improved efficiency)
-        cost_per_output_token=0.32,  # $0.32 per 1M tokens 
-        average_latency_ms=580,
-        context_window=200000,
-        accuracy_score=0.96,
-        reasoning_quality=4.8,
-        confidence_calibration=0.92
+        cost_per_input_token=0.05,  # $0.05 per 1M tokens
+        cost_per_output_token=0.20,  # $0.20 per 1M tokens 
+        average_latency_ms=480,
+        context_window=128000,
+        accuracy_score=0.92,
+        reasoning_quality=4.3,
+        confidence_calibration=0.87
     ),
     
-    LLMModel.CLAUDE_4_SONNET: LLMConfig(
-        model=LLMModel.CLAUDE_4_SONNET,
+    LLMModel.GPT_4_1_NANO: LLMConfig(
+        model=LLMModel.GPT_4_1_NANO,
+        provider=LLMProvider.OPENAI,
+        max_tokens=2000,
+        temperature=0.1,
+        max_requests_per_minute=25000,
+        cost_per_input_token=0.02,  # $0.02 per 1M tokens
+        cost_per_output_token=0.08,  # $0.08 per 1M tokens 
+        average_latency_ms=320,
+        context_window=64000,
+        accuracy_score=0.88,
+        reasoning_quality=3.9,
+        confidence_calibration=0.82
+    ),
+    
+    LLMModel.CLAUDE_OPUS_4: LLMConfig(
+        model=LLMModel.CLAUDE_OPUS_4,
+        provider=LLMProvider.ANTHROPIC,
+        max_tokens=4000,
+        temperature=0.1,
+        max_requests_per_minute=3000,
+        cost_per_input_token=0.20,  # $0.20 per 1M tokens
+        cost_per_output_token=0.80,  # $0.80 per 1M tokens
+        average_latency_ms=750,
+        context_window=500000,
+        accuracy_score=0.97,
+        reasoning_quality=4.9,
+        confidence_calibration=0.95
+    ),
+    
+    LLMModel.CLAUDE_SONNET_4: LLMConfig(
+        model=LLMModel.CLAUDE_SONNET_4,
         provider=LLMProvider.ANTHROPIC,
         max_tokens=4000,
         temperature=0.1,
         max_requests_per_minute=8000,
         cost_per_input_token=0.12,  # $0.12 per 1M tokens
         cost_per_output_token=0.48,  # $0.48 per 1M tokens
-        average_latency_ms=420,
+        average_latency_ms=520,
         context_window=500000,
         accuracy_score=0.94,
-        reasoning_quality=4.9,
-        confidence_calibration=0.94
-    ),
-    
-    LLMModel.LLAMA_4: LLMConfig(
-        model=LLMModel.LLAMA_4,
-        provider=LLMProvider.OLLAMA,
-        max_tokens=4000,
-        temperature=0.1,
-        max_requests_per_minute=2000,  # Hardware dependent
-        cost_per_input_token=0.0,  # Fixed hosting cost
-        cost_per_output_token=0.0,  # Fixed hosting cost
-        average_latency_ms=890,
-        context_window=128000,
-        accuracy_score=0.88,
-        reasoning_quality=4.3,
-        confidence_calibration=0.83
+        reasoning_quality=4.6,
+        confidence_calibration=0.93
     )
 }
 
@@ -103,8 +134,8 @@ class ClaimComplexity(Enum):
 class PrivacyLevel(Enum):
     """Privacy requirements for processing claims."""
     STANDARD = "standard"  # Normal processing
-    SENSITIVE = "sensitive"  # Prefer local processing
-    CONFIDENTIAL = "confidential"  # Must use local processing
+    SENSITIVE = "sensitive"  # Prefer stronger models
+    CONFIDENTIAL = "confidential"  # Use most secure provider
 
 
 class UrgencyLevel(Enum):
@@ -135,20 +166,23 @@ def select_optimal_model(
     Returns:
         The optimal LLM model to use for this request
     """
-    # Privacy override: use local model for sensitive/confidential data
+    # Sensitive data: prefer Anthropic for better safety (highest priority)
     if privacy in [PrivacyLevel.SENSITIVE, PrivacyLevel.CONFIDENTIAL]:
-        return LLMModel.LLAMA_4
+        return LLMModel.CLAUDE_SONNET_4
     
-    # Complex reasoning: use Claude 4 Sonnet for superior analysis
+    # Complex reasoning: use Claude Opus 4 for best analysis
     if complexity == ClaimComplexity.COMPLEX and urgency != UrgencyLevel.HIGH:
-        return LLMModel.CLAUDE_4_SONNET
+        return LLMModel.CLAUDE_OPUS_4
     
-    # High urgency: use fastest model (Claude 4 Sonnet)
+    # High urgency: use fastest capable model
     if urgency == UrgencyLevel.HIGH:
-        return LLMModel.CLAUDE_4_SONNET
+        if complexity == ClaimComplexity.SIMPLE:
+            return LLMModel.GPT_4_1_NANO  # Fastest for simple tasks
+        else:
+            return LLMModel.GPT_4_1_MINI  # Fast for moderate complexity
     
-    # Default case: use GPT-5 for excellent cost/performance balance
-    return LLMModel.GPT_5
+    # Default case: use GPT-4.1 mini for best cost/performance balance
+    return LLMModel.GPT_4_1_MINI
 
 
 def get_fallback_model(primary_model: LLMModel) -> LLMModel:
@@ -162,9 +196,11 @@ def get_fallback_model(primary_model: LLMModel) -> LLMModel:
         The fallback model to try next
     """
     fallback_chain = {
-        LLMModel.GPT_5: LLMModel.CLAUDE_4_SONNET,
-        LLMModel.CLAUDE_4_SONNET: LLMModel.LLAMA_4,
-        LLMModel.LLAMA_4: None  # No fallback for local model
+        LLMModel.GPT_4_1: LLMModel.CLAUDE_SONNET_4,
+        LLMModel.GPT_4_1_MINI: LLMModel.CLAUDE_SONNET_4,
+        LLMModel.GPT_4_1_NANO: LLMModel.GPT_4_1_MINI,
+        LLMModel.CLAUDE_OPUS_4: LLMModel.GPT_4_1,
+        LLMModel.CLAUDE_SONNET_4: LLMModel.GPT_4_1_MINI
     }
     
     return fallback_chain.get(primary_model)
@@ -187,10 +223,6 @@ def calculate_estimated_cost(
         Estimated cost in USD
     """
     config = LLM_CONFIGS[model]
-    
-    # For local models, cost is essentially zero per request
-    if config.provider == LLMProvider.OLLAMA:
-        return 0.0
     
     input_cost = (input_tokens / 1_000_000) * config.cost_per_input_token
     output_cost = (output_tokens / 1_000_000) * config.cost_per_output_token
@@ -220,12 +252,6 @@ def get_provider_settings(provider: LLMProvider) -> Dict[str, Any]:
             "api_key_env": "ANTHROPIC_API_KEY", 
             "timeout": 30,
             "retry_attempts": 3
-        },
-        LLMProvider.OLLAMA: {
-            "base_url": "http://localhost:11434",
-            "api_key_env": None,  # No API key needed for local
-            "timeout": 60,  # Longer timeout for local processing
-            "retry_attempts": 2
         }
     }
     
@@ -233,11 +259,11 @@ def get_provider_settings(provider: LLMProvider) -> Dict[str, Any]:
 
 
 # Export key configurations for use in the agent system (2025 models)
-DEFAULT_PRIMARY_MODEL = LLMModel.GPT_5
-DEFAULT_SECONDARY_MODEL = LLMModel.CLAUDE_4_SONNET
-DEFAULT_FALLBACK_MODEL = LLMModel.LLAMA_4
+DEFAULT_PRIMARY_MODEL = LLMModel.GPT_4_1_MINI
+DEFAULT_SECONDARY_MODEL = LLMModel.CLAUDE_SONNET_4
+DEFAULT_FALLBACK_MODEL = LLMModel.GPT_4_1_NANO
 
 # Usage tracking for cost monitoring
 USAGE_TRACKING_ENABLED = True
-DAILY_COST_LIMIT = 150.0  # USD per day (increased for more powerful models)
-MONTHLY_COST_LIMIT = 3000.0  # USD per month
+DAILY_COST_LIMIT = 200.0  # USD per day (increased for powerful models)
+MONTHLY_COST_LIMIT = 4000.0  # USD per month
