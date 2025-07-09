@@ -80,9 +80,6 @@ class LLMService:
         # Check Anthropic
         availability[LLMProvider.ANTHROPIC] = bool(os.getenv("ANTHROPIC_API_KEY"))
         
-        # Check Ollama (local)
-        availability[LLMProvider.OLLAMA] = True  # Assume local is available
-        
         return availability
     
     def generate_verification_prompt(self, claim: str, complexity: ClaimComplexity = ClaimComplexity.MODERATE) -> str:
@@ -237,8 +234,9 @@ Format your response as JSON with the following structure:
             raise LLMAPIError(f"Anthropic API error: {str(e)}")
     
     async def call_ollama(self, request: LLMRequest) -> LLMResponse:
-        """Call local Ollama Llama 3.2 API."""
-        config = LLM_CONFIGS[LLMModel.LLAMA_4]
+        """Call local Ollama API (deprecated - no local models in 2025 config)."""
+        # This method is deprecated since we removed local models
+        raise LLMAPIError("Local Ollama models not available in 2025 configuration")
         settings = get_provider_settings(LLMProvider.OLLAMA)
         
         payload = {
@@ -435,8 +433,6 @@ Format your response as JSON with the following structure:
                     response = await self.call_openai(enhanced_request)
                 elif config.provider == LLMProvider.ANTHROPIC:
                     response = await self.call_anthropic(enhanced_request)
-                elif config.provider == LLMProvider.OLLAMA:
-                    response = await self.call_ollama(enhanced_request)
                 else:
                     raise LLMServiceError(f"Unsupported provider: {config.provider}")
                 
