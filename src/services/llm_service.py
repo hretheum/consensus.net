@@ -366,7 +366,7 @@ Format your response as JSON with the following structure:
             if evidence_quality < 0.5 or requires_escalation:
                 # Low quality evidence - escalate to better model
                 complexity = ClaimComplexity.COMPLEX
-                print(f"Evidence quality low ({evidence_quality:.2f}), escalating to higher model")
+                logger.warning(f"Evidence quality low ({evidence_quality:.2f}), escalating to higher model")
             elif evidence_quality < 0.65:
                 # Medium quality - use moderate complexity
                 complexity = ClaimComplexity.MODERATE
