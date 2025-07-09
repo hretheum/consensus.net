@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Adaptive Source Credibility Evolution System
 
 ## Overview
