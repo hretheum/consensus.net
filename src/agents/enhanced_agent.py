@@ -531,3 +531,21 @@ class EnhancedAgent(BaseAgent):
         # Calculate averages
         return {domain: sum(scores) / len(scores) 
                 for domain, scores in expertise.items()}
+    
+    def _parse_verdict(self, verdict_data: Any) -> str:
+        """Parse verdict from LLM response data."""
+        if isinstance(verdict_data, str):
+            verdict = verdict_data.upper()
+            if verdict in ["TRUE", "FALSE", "UNCERTAIN", "ERROR"]:
+                return verdict
+            else:
+                # Try to extract verdict from string content
+                content_lower = verdict_data.lower()
+                if "true" in content_lower and "false" not in content_lower:
+                    return "TRUE"
+                elif "false" in content_lower and "true" not in content_lower:
+                    return "FALSE"
+                else:
+                    return "UNCERTAIN"
+        else:
+            return "UNCERTAIN"

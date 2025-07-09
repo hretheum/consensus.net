@@ -10,8 +10,12 @@ import asyncio
 import aiohttp
 import time
 import json
+import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import asdict
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 from src.config.llm_config import (
     LLMModel, LLMProvider, LLMConfig, LLM_CONFIGS,

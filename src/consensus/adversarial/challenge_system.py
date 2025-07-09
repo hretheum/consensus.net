@@ -151,6 +151,7 @@ class ChallengeGenerator:
         """Generate challenges to source credibility."""
         challenges = []
         
+        # More aggressive source challenging
         for source in result.sources:
             # Check for low-credibility domains
             if any(domain in source.lower() for domain in ["blog", "forum", "social"]):
@@ -166,6 +167,37 @@ class ChallengeGenerator:
                     impact_score=0.6
                 )
                 challenges.append(challenge)
+            
+            # Challenge Wikipedia specifically for controversial topics
+            elif "wikipedia" in source.lower():
+                challenge = Challenge(
+                    challenge_type=ChallengeType.SOURCE_CREDIBILITY,
+                    strength=ChallengeStrength.WEAK,
+                    description=f"Wikipedia may not be sufficient for controversial scientific claims",
+                    reasoning="Wikipedia articles can be edited by anyone and may not represent current scientific consensus on disputed topics",
+                    target_claim=result.claim,
+                    raised_by="prosecutor_agent",
+                    specificity_score=0.7,
+                    verifiability_score=0.8,
+                    impact_score=0.4
+                )
+                challenges.append(challenge)
+        
+        # Challenge if too few academic sources
+        academic_sources = [s for s in result.sources if any(domain in s.lower() for domain in ["pubmed", "arxiv", "doi", "nature", "science"])]
+        if len(academic_sources) == 0 and any(term in result.claim.lower() for term in ["anthropogenic", "climate change", "global warming", "vaccine", "medical"]):
+            challenge = Challenge(
+                challenge_type=ChallengeType.SOURCE_CREDIBILITY,
+                strength=ChallengeStrength.MODERATE,
+                description="Scientific claims require peer-reviewed academic sources",
+                reasoning="Claims about scientific topics should be supported by peer-reviewed research, not just encyclopedic sources",
+                target_claim=result.claim,
+                raised_by="prosecutor_agent",
+                specificity_score=0.8,
+                verifiability_score=0.9,
+                impact_score=0.7
+            )
+            challenges.append(challenge)
         
         return challenges
     
@@ -228,6 +260,37 @@ class ChallengeGenerator:
             )
             challenges.append(challenge)
         
+        # Challenge generic reasoning patterns
+        generic_patterns = ["gathered evidence", "llm provided", "combined evidence", "analysis"]
+        if all(pattern in reasoning_lower for pattern in generic_patterns[:2]):
+            challenge = Challenge(
+                challenge_type=ChallengeType.METHODOLOGY_FLAW,
+                strength=ChallengeStrength.WEAK,
+                description="Reasoning appears formulaic and lacks claim-specific analysis",
+                reasoning="The verification reasoning follows a generic template without addressing specific aspects of this claim",
+                target_reasoning_segment=result.reasoning,
+                raised_by="prosecutor_agent",
+                specificity_score=0.7,
+                verifiability_score=0.8,
+                impact_score=0.5
+            )
+            challenges.append(challenge)
+        
+        # Challenge short reasoning for complex claims
+        if len(result.reasoning) < 100:
+            challenge = Challenge(
+                challenge_type=ChallengeType.CONTEXT_MISSING,
+                strength=ChallengeStrength.WEAK,
+                description="Reasoning is too brief for proper verification",
+                reasoning="Complex claims require detailed reasoning that addresses multiple aspects and potential counterarguments",
+                target_reasoning_segment=result.reasoning,
+                raised_by="prosecutor_agent",
+                specificity_score=0.6,
+                verifiability_score=0.9,
+                impact_score=0.4
+            )
+            challenges.append(challenge)
+        
         # Check for confirmation bias
         if result.verdict in ["TRUE", "FALSE"] and result.confidence > 0.9:
             challenge = Challenge(
@@ -261,6 +324,38 @@ class ChallengeGenerator:
                 specificity_score=0.9,
                 verifiability_score=1.0,
                 impact_score=0.9
+            )
+            challenges.append(challenge)
+        
+        # Challenge UNCERTAIN verdicts with low confidence as potentially inadequate
+        elif result.verdict == "UNCERTAIN" and result.confidence < 0.5:
+            challenge = Challenge(
+                challenge_type=ChallengeType.FACTUAL_ACCURACY,
+                strength=ChallengeStrength.MODERATE,
+                description="Low confidence UNCERTAIN verdict suggests inadequate investigation",
+                reasoning="Very low confidence in UNCERTAIN verdict indicates the verification process may not have gathered sufficient evidence",
+                target_claim=result.claim,
+                raised_by="prosecutor_agent",
+                specificity_score=0.8,
+                verifiability_score=0.9,
+                impact_score=0.6
+            )
+            challenges.append(challenge)
+        
+        # Challenge controversial scientific claims that remain uncertain
+        controversial_terms = ["climate change", "anthropogenic", "vaccine", "covid", "autism", "flat earth", "evolution"]
+        if (result.verdict == "UNCERTAIN" and 
+            any(term in result.claim.lower() for term in controversial_terms)):
+            challenge = Challenge(
+                challenge_type=ChallengeType.CONTEXT_MISSING,
+                strength=ChallengeStrength.MODERATE,
+                description="Controversial scientific claims require more thorough investigation",
+                reasoning="Claims involving established scientific consensus should not remain uncertain without compelling contrary evidence",
+                target_claim=result.claim,
+                raised_by="prosecutor_agent",
+                specificity_score=0.7,
+                verifiability_score=0.8,
+                impact_score=0.7
             )
             challenges.append(challenge)
         

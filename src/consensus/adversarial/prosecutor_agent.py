@@ -129,15 +129,30 @@ class ProsecutorAgent(BaseAgent):
         """Filter challenges based on prosecutor strategy."""
         filtered = []
         
+        print(f"📋 Prosecutor filtering {len(challenges)} initial challenges...")
+        
         for challenge in challenges:
-            # Only include challenges that meet minimum standards
-            if challenge.get_priority_score() >= 0.3:
-                # Apply aggressiveness factor
-                if challenge.get_priority_score() >= (1.0 - self.challenge_aggressiveness):
+            priority = challenge.get_priority_score()
+            print(f"   🎯 Challenge {challenge.challenge_type.value}: priority={priority:.2f}")
+            
+            # More lenient filtering - accept challenges with priority >= 0.2
+            if priority >= 0.2:
+                # Apply aggressiveness factor (lowered threshold)
+                if priority >= (1.0 - self.challenge_aggressiveness):
                     filtered.append(challenge)
+                    print(f"     ✅ Accepted (high priority)")
                 elif challenge.challenge_type in self.focus_areas:
                     filtered.append(challenge)
+                    print(f"     ✅ Accepted (focus area)")
+                elif priority >= 0.4:  # Additional threshold for medium priority
+                    filtered.append(challenge)
+                    print(f"     ✅ Accepted (medium priority)")
+                else:
+                    print(f"     ❌ Rejected (low priority)")
+            else:
+                print(f"     ❌ Rejected (below threshold)")
         
+        print(f"📋 Filtered to {len(filtered)} challenges")
         return filtered
     
     def _prioritize_challenges(self, challenges: List[Challenge]) -> List[Challenge]:
