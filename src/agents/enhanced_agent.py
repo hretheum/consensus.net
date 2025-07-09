@@ -388,8 +388,11 @@ class EnhancedAgent(BaseAgent):
             # Call LLM with adaptive model selection based on evidence quality
             llm_request = LLMRequest(
                 prompt=prompt,
-                max_tokens=1000,
-                temperature=0.3
+                model="auto-selected",  # Will be selected by LLM service
+                parameters={
+                    "max_tokens": 1000,
+                    "temperature": 0.3
+                }
             )
             
             async with self.llm_interaction.llm_service as llm_service:
