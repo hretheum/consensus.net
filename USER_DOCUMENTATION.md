@@ -729,7 +729,146 @@ done
 
 ---
 
-## 🔧 Advanced Features
+## � Adaptive Source Credibility Evolution
+
+### Overview
+ConsensusNet implements an adaptive system that dynamically adjusts the credibility of evidence sources based on their historical performance. This ensures the highest possible accuracy by:
+
+1. **Prioritizing Reliable Sources**: Academic and institutional sources start with higher credibility
+2. **Learning from Performance**: Sources that consistently provide accurate information gain credibility
+3. **Automatic Model Escalation**: When evidence quality is low, the system automatically uses more sophisticated LLMs
+
+### Source Tiers
+
+#### Tier 1: Academic Sources (0.85-0.95)
+- **PubMed**: 0.93 - Medical and scientific papers
+- **arXiv**: 0.85 - Research preprints
+- **Nature.com**: 0.92 - Peer-reviewed science
+- **Science.org**: 0.91 - Scientific publications
+
+#### Tier 2: Institutional Sources (0.85-0.90)
+- **WHO.int**: 0.90 - World Health Organization
+- **CDC.gov**: 0.89 - Centers for Disease Control
+- **NIH.gov**: 0.91 - National Institutes of Health
+- **NASA.gov**: 0.88 - Space and science data
+
+#### Tier 3: Encyclopedia Sources (0.80-0.85)
+- **Wikipedia**: 0.85 - Crowd-sourced encyclopedia
+- **Britannica**: 0.90 - Professional encyclopedia
+
+#### Tier 4: News Sources (0.70-0.88)
+- **Reuters**: 0.88 - International news
+- **BBC**: 0.87 - British news
+- **AP News**: 0.86 - Associated Press
+- **NewsAPI**: 0.75 - Aggregated news
+
+#### Tier 5: Web Search (0.60-0.70)
+- **Google Search**: 0.65 - General web results
+- **General web**: 0.60 - Other web sources
+
+### Adaptive Mechanisms
+
+#### Credibility Evolution
+Sources gain or lose credibility based on:
+- Agreement with consensus
+- Verification by higher-tier sources
+- Temporal consistency
+- User feedback
+
+Formula: `new_credibility = old_credibility * 0.7 + performance_score * 0.3`
+
+#### Automatic LLM Escalation
+When evidence quality is low (<0.65), the system automatically:
+1. Switches to Claude 3 Haiku for better reasoning
+2. Enhances prompts with evidence quality context
+3. Adjusts confidence scores based on source reliability
+
+### API Endpoints
+
+#### Get Source Statistics
+```bash
+curl http://localhost:8000/api/sources/stats
+```
+
+Response includes:
+- Current credibility scores for all sources
+- Performance metrics
+- Cache statistics
+- Available sources and API key status
+
+#### Test Specific Source
+```bash
+curl -X POST "http://localhost:8000/api/sources/test/pubmed?query=COVID-19%20vaccine%20safety"
+```
+
+Available source types:
+- `wikipedia` - Wikipedia search
+- `pubmed` - PubMed medical database
+- `arxiv` - arXiv research papers
+- `news` - NewsAPI current events
+- `google` - Google Custom Search
+
+### Configuration
+
+Add these API keys to your `.env` file:
+
+```bash
+# Evidence Sources
+NEWSAPI_KEY=your_newsapi_key_here
+GOOGLE_API_KEY=your_google_api_key_here  
+GOOGLE_CSE_ID=your_google_custom_search_engine_id_here
+
+# Adaptive Credibility Settings
+CREDIBILITY_UPDATE_THRESHOLD=10
+CREDIBILITY_ESCALATION_THRESHOLD=0.65
+CONSENSUS_THRESHOLD=0.75
+```
+
+### Free Tier Limits
+- **PubMed**: 3 requests/second (unlimited total)
+- **arXiv**: Reasonable use (no hard limit)
+- **Wikipedia**: Unlimited
+- **NewsAPI**: 100 requests/day
+- **Google Search**: 100 requests/day
+
+### Example: Adaptive Verification
+
+```python
+import requests
+
+# Complex medical claim - will use multiple sources
+response = requests.post(
+    "http://localhost:8000/api/verify/enhanced",
+    json={
+        "claim": "mRNA vaccines modify human DNA"
+    }
+)
+
+result = response.json()
+
+# Check which sources were used
+print("Sources consulted:", result["result"]["metadata"]["sources_consulted"])
+print("Evidence quality:", result["result"]["metadata"]["evidence_quality"])
+print("LLM model used:", result["result"]["metadata"]["llm_model"])
+print("Escalation reason:", result["result"]["metadata"]["adaptive_routing"]["escalation_reason"])
+```
+
+### Monitoring Source Performance
+
+```python
+# Get current source credibility scores
+stats = requests.get("http://localhost:8000/api/sources/stats").json()
+
+for source, data in stats["credibility_scores"].items():
+    print(f"{source}: {data['current_score']:.3f} ({data['tier']})")
+    if data["performance"]["total"] > 0:
+        accuracy = data["performance"]["correct"] / data["performance"]["total"]
+        print(f"  Performance: {accuracy:.1%} accuracy over {data['performance']['total']} uses")
+```
+
+---
+
+## �🔧 Advanced Features
 
 ### Agent Configuration
 
