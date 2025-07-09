@@ -5,10 +5,10 @@ import time
 import asyncio
 from typing import Optional, Dict, Any
 
-from agents.simple_agent import SimpleAgent
-from agents.enhanced_agent import EnhancedAgent
-from agents.verification_result import VerificationResult
-from api.models import VerificationRequest
+from src.agents.simple_agent import SimpleAgent
+from src.agents.enhanced_agent import EnhancedAgent
+from src.agents.verification_result import VerificationResult
+from src.api.models import VerificationRequest
 
 
 class VerificationService:

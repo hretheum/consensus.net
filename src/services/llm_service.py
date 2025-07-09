@@ -13,12 +13,12 @@ import json
 from typing import Dict, Any, Optional, List
 from dataclasses import asdict
 
-from config.llm_config import (
+from src.config.llm_config import (
     LLMModel, LLMProvider, LLMConfig, LLM_CONFIGS,
     select_optimal_model, get_fallback_model, get_provider_settings,
     ClaimComplexity, PrivacyLevel, UrgencyLevel
 )
-from agents.agent_models import LLMRequest, LLMResponse
+from src.agents.agent_models import LLMRequest, LLMResponse
 
 
 class LLMServiceError(Exception):

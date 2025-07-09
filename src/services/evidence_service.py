@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Set
 from urllib.parse import quote, urlparse
 
-from agents.agent_models import ProcessedClaim, Evidence, EvidenceBundle
+from src.agents.agent_models import ProcessedClaim, Evidence, EvidenceBundle
 
 
 class EvidenceServiceError(Exception):

@@ -20,11 +20,11 @@ from ...agents.enhanced_agent import EnhancedAgent
 from ...agents.verification_result import VerificationResult
 from ...agents.agent_models import ProcessedClaim, ClaimComplexity
 
-from consensus.communication.message_passing import (
+from src.consensus.communication.message_passing import (
     AgentMessage, MessageType, MessagePriority, message_bus,
     create_verification_request, create_verification_result
 )
-from consensus.communication.agent_discovery import (
+from src.consensus.communication.agent_discovery import (
     AgentRegistry, AgentProfile, AgentType, CapabilityType, 
     AgentCapability, agent_registry
 )

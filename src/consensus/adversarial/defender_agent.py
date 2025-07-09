@@ -12,7 +12,7 @@ from datetime import datetime
 from ...agents.base_agent import BaseAgent
 from ...agents.verification_result import VerificationResult
 from ...agents.agent_models import Evidence
-from .challenge_system import (
+from src.consensus.adversarial.challenge_system import (
     Challenge, ChallengeType, ChallengeStrength, 
     ChallengeResponse
 )

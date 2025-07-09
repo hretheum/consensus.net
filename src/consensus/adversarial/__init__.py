@@ -5,11 +5,11 @@ Implements prosecutor/defender/moderator agents for adversarial verification.
 This module provides the core infrastructure for debate-based consensus.
 """
 
-from .prosecutor_agent import ProsecutorAgent
-from .defender_agent import DefenderAgent  
-from .moderator_agent import ModeratorAgent
-from .debate_engine import DebateEngine, DebateResult, DebateRound
-from .challenge_system import Challenge, ChallengeType, ChallengeResponse
+from src.consensus.adversarial.prosecutor_agent import ProsecutorAgent
+from src.consensus.adversarial.defender_agent import DefenderAgent
+from src.consensus.adversarial.moderator_agent import ModeratorAgent
+from src.consensus.adversarial.debate_engine import DebateEngine, DebateResult, DebateRound
+from src.consensus.adversarial.challenge_system import Challenge, ChallengeType, ChallengeResponse
 
 __all__ = [
     "ProsecutorAgent",

@@ -10,7 +10,7 @@ Manages connection pools for:
 
 import asyncio
 import asyncpg
-import aioredis
+import redis.asyncio as redis
 import aiohttp
 from typing import Dict, Any, Optional, List, Callable, AsyncContextManager
 from dataclasses import dataclass
@@ -111,7 +111,7 @@ class ConnectionPoolManager:
         """Create Redis connection pool"""
         redis_config = config['connection']
         
-        self.pools[name] = aioredis.ConnectionPool.from_url(
+        self.pools[name] = redis.ConnectionPool.from_url(
             redis_config['url'],
             max_connections=pool_config.max_size,
             retry_on_timeout=True,
@@ -170,8 +170,8 @@ class ConnectionPoolManager:
                     yield conn
                     self.pool_stats[pool_name]["active_connections"] -= 1
                     
-            elif isinstance(pool, aioredis.ConnectionPool):
-                connection = aioredis.Redis(connection_pool=pool)
+            elif isinstance(pool, redis.ConnectionPool):
+                connection = redis.Redis(connection_pool=pool)
                 self.pool_stats[pool_name]["active_connections"] += 1
                 yield connection
                 self.pool_stats[pool_name]["active_connections"] -= 1
@@ -242,7 +242,7 @@ class ConnectionPoolManager:
             if isinstance(pool, asyncpg.Pool):
                 stats["pool_size"] = pool.get_size()
                 stats["pool_type"] = "database"
-            elif isinstance(pool, aioredis.ConnectionPool):
+            elif isinstance(pool, redis.ConnectionPool):
                 stats["pool_size"] = len(pool._available_connections)
                 stats["pool_type"] = "redis"
             elif isinstance(pool, aiohttp.ClientSession):
@@ -270,10 +270,10 @@ class ConnectionPoolManager:
                         await conn.fetchval("SELECT 1")
                         health_status[pool_name] = True
                         
-                elif isinstance(pool, aioredis.ConnectionPool):
-                    redis = aioredis.Redis(connection_pool=pool)
-                    await redis.ping()
-                    await redis.close()
+                elif isinstance(pool, redis.ConnectionPool):
+                    redis_client = redis.Redis(connection_pool=pool)
+                    await redis_client.ping()
+                    await redis_client.close()
                     health_status[pool_name] = True
                     
                 elif isinstance(pool, aiohttp.ClientSession):
@@ -299,7 +299,7 @@ class ConnectionPoolManager:
                 if isinstance(pool, asyncpg.Pool):
                     # AsyncPG handles this automatically
                     pass
-                elif isinstance(pool, aioredis.ConnectionPool):
+                elif isinstance(pool, redis.ConnectionPool):
                     # Redis connection pool cleanup
                     await pool.disconnect()
                 elif isinstance(pool, aiohttp.ClientSession):
@@ -322,7 +322,7 @@ class ConnectionPoolManager:
             try:
                 if isinstance(pool, asyncpg.Pool):
                     await pool.close()
-                elif isinstance(pool, aioredis.ConnectionPool):
+                elif isinstance(pool, redis.ConnectionPool):
                     await pool.disconnect()
                 elif isinstance(pool, aiohttp.ClientSession):
                     await pool.close()

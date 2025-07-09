@@ -75,8 +75,8 @@ class JobQueueManager:
         self.worker_count = worker_count
         
         try:
-            import aioredis
-            self.redis_client = aioredis.from_url(
+            import redis.asyncio as redis
+            self.redis_client = redis.from_url(
                 self.redis_url,
                 decode_responses=True
             )

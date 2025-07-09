@@ -118,7 +118,7 @@ class MetricsCollector:
         """Collect application-specific metrics"""
         # Queue metrics
         try:
-            from .job_queue import job_queue
+            from src.consensus.production.job_queue import job_queue
             queue_stats = await job_queue.get_queue_stats()
             self.record_metric("queue_size", queue_stats.get("total_queue_size", 0))
             self.record_metric("jobs_processed", queue_stats.get("jobs_processed", 0))
@@ -128,7 +128,7 @@ class MetricsCollector:
             
         # Cache metrics
         try:
-            from .cache_manager import cache_manager
+            from src.consensus.production.cache_manager import cache_manager
             cache_stats = cache_manager.get_cache_stats()
             self.record_metric("cache_hit_rate", cache_stats.get("hit_rate", 0))
             self.record_metric("cache_total_requests", cache_stats.get("total_requests", 0))
@@ -137,7 +137,7 @@ class MetricsCollector:
             
         # Circuit breaker metrics
         try:
-            from .circuit_breaker import circuit_registry
+            from src.consensus.production.circuit_breaker import circuit_registry
             cb_stats = circuit_registry.get_all_stats()
             for name, stats in cb_stats.items():
                 self.record_metric(f"circuit_breaker_{name}_state", 
@@ -399,7 +399,7 @@ health_checker = HealthChecker()
 async def database_health_check():
     """Check database connectivity"""
     try:
-        from .connection_pool import connection_manager
+        from src.consensus.production.connection_pool import connection_manager
         health = await connection_manager.health_check()
         db_healthy = health.get("main_db", False)
         return {
@@ -412,7 +412,7 @@ async def database_health_check():
 async def cache_health_check():
     """Check cache connectivity"""
     try:
-        from .cache_manager import cache_manager
+        from src.consensus.production.cache_manager import cache_manager
         stats = cache_manager.get_cache_stats()
         cache_healthy = stats.get("redis_connected", False)
         return {
@@ -425,7 +425,7 @@ async def cache_health_check():
 async def job_queue_health_check():
     """Check job queue status"""
     try:
-        from .job_queue import job_queue
+        from src.consensus.production.job_queue import job_queue
         stats = await job_queue.get_queue_stats()
         queue_healthy = stats.get("is_running", False)
         return {

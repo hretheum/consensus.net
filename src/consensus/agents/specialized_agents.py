@@ -19,10 +19,10 @@ from ...agents.verification_result import VerificationResult
 from ...agents.agent_models import ProcessedClaim, Evidence, EvidenceBundle
 from ...services.evidence_service import EvidenceService
 
-from consensus.communication.message_passing import (
+from src.consensus.communication.message_passing import (
     AgentMessage, MessageType, message_bus, create_verification_result
 )
-from consensus.communication.agent_discovery import (
+from src.consensus.communication.agent_discovery import (
     AgentProfile, AgentType, CapabilityType, AgentCapability
 )
 

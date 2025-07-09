@@ -18,8 +18,8 @@ import asyncio
 from contextlib import asynccontextmanager
 import logging
 
-from ..models import VerificationResult
-from ..agents.models import AgentResponse
+from src.agents.verification_result import VerificationResult
+from src.agents.agent_models import LLMResponse
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class CacheManager:
             logger.error(f"Cache set error: {e}")
             return False
     
-    async def get_agent_cache(self, agent_id: str, task_hash: str) -> Optional[AgentResponse]:
+    async def get_agent_cache(self, agent_id: str, task_hash: str) -> Optional[LLMResponse]:
         """Get cached agent response"""
         try:
             cache_key = self._generate_cache_key("agent", {
@@ -151,7 +151,7 @@ class CacheManager:
             if cached_data:
                 self.cache_stats["hits"] += 1
                 data = json.loads(cached_data)
-                return AgentResponse(**data)
+                return LLMResponse(**data)
             else:
                 self.cache_stats["misses"] += 1
                 return None
@@ -161,7 +161,7 @@ class CacheManager:
             return None
     
     async def set_agent_cache(self, agent_id: str, task_hash: str, 
-                            response: AgentResponse, ttl: int = None) -> bool:
+                            response: LLMResponse, ttl: int = None) -> bool:
         """Cache agent response"""
         try:
             cache_key = self._generate_cache_key("agent", {

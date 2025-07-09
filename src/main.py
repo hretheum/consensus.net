@@ -9,12 +9,12 @@ from fastapi.responses import JSONResponse
 import uvicorn
 import os
 
-from api.models import VerificationRequest, VerificationResponse, ErrorResponse
-from api.rate_limiter import rate_limit_middleware
-from services.verification_service import verification_service
-from agents.verification_result import VerificationResult
-from consensus.adversarial.debate_engine import debate_engine
-from consensus.trust.reputation_system import ReputationSystem
+from src.api.models import VerificationRequest, VerificationResponse, ErrorResponse
+from src.api.rate_limiter import rate_limit_middleware
+from src.services.verification_service import verification_service
+from src.agents.verification_result import VerificationResult
+from src.consensus.adversarial.debate_engine import debate_engine
+from src.consensus.trust.reputation_system import ReputationSystem
 
 # Create FastAPI app
 app = FastAPI(
@@ -302,7 +302,7 @@ async def verify_claim_multi_agent(request: VerificationRequest) -> Verification
     
     try:
         # For now, simulate multi-agent by calling multiple verification methods
-        from services.verification_service import verification_service
+        from src.services.verification_service import verification_service
         
         print(f"🔄 Multi-agent simulation for: {request.claim}")
         
@@ -1169,9 +1169,9 @@ async def startup_event():
         # Setup Prometheus metrics
         setup_prometheus_metrics(metrics_collector, health_checker)
         
-        logger.info("✅ Prometheus metrics initialized")
+        print("✅ Prometheus metrics initialized")
     except Exception as e:
-        logger.error(f"Failed to initialize Prometheus metrics: {e}")
+        print(f"Failed to initialize Prometheus metrics: {e}")
 
 
 # Middleware to track API metrics
@@ -1229,7 +1229,7 @@ async def prometheus_metrics():
             media_type=get_metrics_content_type()
         )
     except Exception as e:
-        logger.error(f"Failed to generate metrics: {e}")
+        print(f"Failed to generate metrics: {e}")
         return Response(
             content=f"# Error generating metrics: {str(e)}\n",
             media_type="text/plain",

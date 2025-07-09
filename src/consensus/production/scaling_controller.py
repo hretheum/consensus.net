@@ -197,7 +197,7 @@ class AutoScalingController:
         """Get current job queue depth"""
         try:
             # This would integrate with the job queue manager
-            from .job_queue import job_queue
+            from src.consensus.production.job_queue import job_queue
             stats = await job_queue.get_queue_stats()
             return float(stats.get("total_queue_size", 0))
         except Exception:
@@ -207,7 +207,7 @@ class AutoScalingController:
         """Get average response time"""
         try:
             # This would integrate with metrics collector
-            from .monitoring import metrics_collector
+            from src.consensus.production.monitoring import metrics_collector
             return metrics_collector.get_average_response_time()
         except Exception:
             return 100.0  # Default value
@@ -216,7 +216,7 @@ class AutoScalingController:
         """Get current request rate per minute"""
         try:
             # This would integrate with metrics collector
-            from .monitoring import metrics_collector
+            from src.consensus.production.monitoring import metrics_collector
             return metrics_collector.get_request_rate()
         except Exception:
             return 10.0  # Default value

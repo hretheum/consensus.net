@@ -12,10 +12,10 @@ from typing import List, Dict, Any, Optional
 from enum import Enum
 
 from ...agents.verification_result import VerificationResult
-from .prosecutor_agent import ProsecutorAgent
-from .defender_agent import DefenderAgent
-from .moderator_agent import ModeratorAgent, DebateAnalysis
-from .challenge_system import Challenge, ChallengeResponse
+from src.consensus.adversarial.prosecutor_agent import ProsecutorAgent
+from src.consensus.adversarial.defender_agent import DefenderAgent
+from src.consensus.adversarial.moderator_agent import ModeratorAgent, DebateAnalysis
+from src.consensus.adversarial.challenge_system import Challenge, ChallengeResponse
 
 
 class DebateStatus(Enum):
