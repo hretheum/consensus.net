@@ -8,10 +8,11 @@ from typing import Dict, List, Any, Optional, Tuple
 import uuid
 
 from src.agents.base_agent import BaseAgent
-from src.agents.verification_result import VerificationResult, Verdict
+from src.agents.verification_result import VerificationResult
 from src.agents.agent_models import (
     ProcessedClaim, EvidenceBundle, Evidence, LLMRequest, LLMResponse,
-    ClaimComplexity, VerificationStep, VerificationChain, PerformanceMetrics
+    ClaimComplexity, VerificationStep, VerificationChain, PerformanceMetrics,
+    AgentState
 )
 
 # Import from simple_agent - these contain the modular components
@@ -23,7 +24,7 @@ from src.agents.simple_agent import (
 from src.services.llm_service import llm_service, LLMServiceError
 from src.services.evidence_service import evidence_service, EvidenceServiceError
 from src.config.llm_config import (
-    LLMModel, ClaimComplexity, PrivacyLevel, UrgencyLevel
+    LLMModel, ClaimComplexity as LLMClaimComplexity, PrivacyLevel, UrgencyLevel
 )
 
 
@@ -312,13 +313,13 @@ class EnhancedAgent(BaseAgent):
         """Initialize enhanced agent with real service integrations."""
         super().__init__(agent_id or f"enhanced-agent-{uuid.uuid4().hex[:8]}")
         
-        # Initialize modular components
+        # Initialize enhanced components
         self.input_processor = InputProcessor()
         self.state_manager = StateManager()
-        self.evidence_engine = SimpleEvidenceEngine()
-        self.llm_interaction = SimpleLLMInteraction()
+        self.evidence_engine = EnhancedEvidenceEngine()
+        self.llm_interaction = EnhancedLLMInteraction()
         self.output_generator = OutputGenerator()
-        self.verification_logic = VerificationLogic()
+        self.verification_logic = EnhancedVerificationLogic(self.llm_interaction, self.evidence_engine)
         
         # Enhanced services (will be set via properties)
         self._llm_service = None
@@ -410,7 +411,8 @@ class EnhancedAgent(BaseAgent):
                 verdict=self._parse_verdict(structured_data.get("verdict", "UNCERTAIN")),
                 confidence=llm_response.confidence or structured_data.get("confidence", 0.5),
                 reasoning=structured_data.get("reasoning", llm_response.content),
-                evidence=evidence_bundle,
+                evidence=[f"Evidence from {e.source}: {e.content[:200]}..." for e in evidence_bundle.supporting_evidence + evidence_bundle.contradicting_evidence + evidence_bundle.neutral_evidence],
+                sources=evidence_bundle.metadata.get("sources_used", []),
                 agent_id=self.agent_id,
                 processing_time=0.0,  # Will be calculated
                 metadata={
@@ -435,15 +437,11 @@ class EnhancedAgent(BaseAgent):
             # Return error result
             return VerificationResult(
                 claim=claim,
-                verdict=Verdict.ERROR,
+                verdict="ERROR",
                 confidence=0.0,
                 reasoning=f"Verification failed: {str(e)}",
-                evidence=EvidenceBundle(
-                    supporting_evidence=[],
-                    contradicting_evidence=[],
-                    neutral_evidence=[],
-                    overall_quality=0.0
-                ),
+                evidence=[],
+                sources=[],
                 agent_id=self.agent_id,
                 processing_time=0.0,
                 metadata={"error": str(e)}

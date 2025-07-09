@@ -74,7 +74,7 @@ class VerificationService:
         if agent_type == "enhanced":
             agent = self.get_or_create_enhanced_agent(request.agent_id)
             # Use async verify for enhanced agent
-            result = await agent.verify_async(request.claim)
+            result = await agent.verify(request.claim)
         else:
             agent = self.get_or_create_simple_agent(request.agent_id)
             # Use sync verify for simple agent

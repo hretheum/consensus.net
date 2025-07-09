@@ -136,7 +136,7 @@ Format your response as JSON with the following structure:
     
     async def call_openai(self, request: LLMRequest) -> LLMResponse:
         """Call OpenAI GPT-4o-mini API."""
-        config = LLM_CONFIGS[LLMModel.GPT_4O_MINI]
+        config = LLM_CONFIGS[LLMModel.GPT_5]
         settings = get_provider_settings(LLMProvider.OPENAI)
         
         headers = {
@@ -187,7 +187,7 @@ Format your response as JSON with the following structure:
     
     async def call_anthropic(self, request: LLMRequest) -> LLMResponse:
         """Call Anthropic Claude 3 Haiku API."""
-        config = LLM_CONFIGS[LLMModel.CLAUDE_3_HAIKU]
+        config = LLM_CONFIGS[LLMModel.CLAUDE_4_SONNET]
         settings = get_provider_settings(LLMProvider.ANTHROPIC)
         
         headers = {
@@ -239,7 +239,7 @@ Format your response as JSON with the following structure:
     
     async def call_ollama(self, request: LLMRequest) -> LLMResponse:
         """Call local Ollama Llama 3.2 API."""
-        config = LLM_CONFIGS[LLMModel.LLAMA_3_2]
+        config = LLM_CONFIGS[LLMModel.LLAMA_4]
         settings = get_provider_settings(LLMProvider.OLLAMA)
         
         payload = {
@@ -389,16 +389,16 @@ Format your response as JSON with the following structure:
         if evidence_quality and evidence_quality < 0.65:
             # For low quality evidence, try better models first
             model_chain = [
-                LLMModel.CLAUDE_3_HAIKU,  # Best reasoning
-                LLMModel.GPT_4O_MINI,     # Good balance
-                LLMModel.LLAMA_3_2        # Local fallback
+                LLMModel.CLAUDE_4_SONNET,  # Best reasoning
+                LLMModel.GPT_5,     # Good balance
+                LLMModel.LLAMA_4        # Local fallback
             ]
         else:
             # Normal fallback chain
             model_chain = [primary_model, get_fallback_model(primary_model)]
             if evidence_quality and evidence_quality > 0.8:
                 # High quality evidence - add cheaper model as first option
-                model_chain = [LLMModel.GPT_4O_MINI] + model_chain
+                model_chain = [LLMModel.GPT_5] + model_chain
         
         # Remove duplicates while preserving order
         seen = set()

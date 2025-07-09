@@ -36,9 +36,9 @@ class TestLLMConfiguration:
 
     def test_performance_characteristics(self):
         """Test that performance characteristics match research findings."""
-        gpt_config = LLM_CONFIGS[LLMModel.GPT_4O_MINI]
-        claude_config = LLM_CONFIGS[LLMModel.CLAUDE_3_HAIKU]
-        llama_config = LLM_CONFIGS[LLMModel.LLAMA_3_2]
+        gpt_config = LLM_CONFIGS[LLMModel.GPT_5]
+        claude_config = LLM_CONFIGS[LLMModel.CLAUDE_4_SONNET]
+        llama_config = LLM_CONFIGS[LLMModel.LLAMA_4]
         
         # GPT-4o-mini should have highest accuracy
         assert gpt_config.accuracy_score > claude_config.accuracy_score
@@ -59,17 +59,17 @@ class TestModelSelection:
     def test_default_selection(self):
         """Test default model selection returns GPT-4o-mini."""
         model = select_optimal_model()
-        assert model == LLMModel.GPT_4O_MINI
+        assert model == LLMModel.GPT_5
     
     def test_privacy_override(self):
         """Test that privacy requirements override other selections."""
         # Sensitive data should use local model
         model = select_optimal_model(privacy=PrivacyLevel.SENSITIVE)
-        assert model == LLMModel.LLAMA_3_2
+        assert model == LLMModel.LLAMA_4
         
         # Confidential data should use local model
         model = select_optimal_model(privacy=PrivacyLevel.CONFIDENTIAL)
-        assert model == LLMModel.LLAMA_3_2
+        assert model == LLMModel.LLAMA_4
     
     def test_complex_reasoning_selection(self):
         """Test complex claims select Claude for better reasoning."""
@@ -77,12 +77,12 @@ class TestModelSelection:
             complexity=ClaimComplexity.COMPLEX, 
             urgency=UrgencyLevel.LOW
         )
-        assert model == LLMModel.CLAUDE_3_HAIKU
+        assert model == LLMModel.CLAUDE_4_SONNET
     
     def test_urgency_override(self):
         """Test that high urgency selects fastest model."""
         model = select_optimal_model(urgency=UrgencyLevel.HIGH)
-        assert model == LLMModel.CLAUDE_3_HAIKU
+        assert model == LLMModel.CLAUDE_4_SONNET
     
     def test_urgency_overrides_complexity(self):
         """Test that urgency overrides complexity preferences."""
@@ -91,7 +91,7 @@ class TestModelSelection:
             urgency=UrgencyLevel.HIGH
         )
         # Should prefer speed over reasoning quality for urgent requests
-        assert model == LLMModel.CLAUDE_3_HAIKU
+        assert model == LLMModel.CLAUDE_4_SONNET
 
 
 class TestFallbackLogic:
@@ -99,17 +99,17 @@ class TestFallbackLogic:
     
     def test_gpt_fallback(self):
         """Test GPT-4o-mini fallback is Claude."""
-        fallback = get_fallback_model(LLMModel.GPT_4O_MINI)
-        assert fallback == LLMModel.CLAUDE_3_HAIKU
+        fallback = get_fallback_model(LLMModel.GPT_5)
+        assert fallback == LLMModel.CLAUDE_4_SONNET
     
     def test_claude_fallback(self):
         """Test Claude fallback is Llama."""
-        fallback = get_fallback_model(LLMModel.CLAUDE_3_HAIKU)
-        assert fallback == LLMModel.LLAMA_3_2
+        fallback = get_fallback_model(LLMModel.CLAUDE_4_SONNET)
+        assert fallback == LLMModel.LLAMA_4
     
     def test_llama_no_fallback(self):
         """Test Llama has no fallback (local model)."""
-        fallback = get_fallback_model(LLMModel.LLAMA_3_2)
+        fallback = get_fallback_model(LLMModel.LLAMA_4)
         assert fallback is None
 
 
@@ -117,27 +117,27 @@ class TestCostCalculation:
     """Test cost calculation logic."""
     
     def test_gpt_cost_calculation(self):
-        """Test GPT-4o-mini cost calculation."""
+        """Test GPT-5 cost calculation."""
         # Example: 100 input tokens, 50 output tokens
-        cost = calculate_estimated_cost(LLMModel.GPT_4O_MINI, 100, 50)
-        expected = (100 / 1_000_000) * 0.15 + (50 / 1_000_000) * 0.60
+        cost = calculate_estimated_cost(LLMModel.GPT_5, 100, 50)
+        expected = (100 / 1_000_000) * 0.08 + (50 / 1_000_000) * 0.32
         assert abs(cost - expected) < 0.000001
     
     def test_claude_cost_calculation(self):
-        """Test Claude cost calculation."""
-        cost = calculate_estimated_cost(LLMModel.CLAUDE_3_HAIKU, 100, 50)
-        expected = (100 / 1_000_000) * 0.25 + (50 / 1_000_000) * 1.25
+        """Test Claude 4 Sonnet cost calculation."""
+        cost = calculate_estimated_cost(LLMModel.CLAUDE_4_SONNET, 100, 50)
+        expected = (100 / 1_000_000) * 0.12 + (50 / 1_000_000) * 0.48
         assert abs(cost - expected) < 0.000001
     
     def test_ollama_zero_cost(self):
         """Test that local models have zero marginal cost."""
-        cost = calculate_estimated_cost(LLMModel.LLAMA_3_2, 1000, 500)
+        cost = calculate_estimated_cost(LLMModel.LLAMA_4, 1000, 500)
         assert cost == 0.0
     
     def test_cost_scaling(self):
         """Test cost scales linearly with token usage."""
-        base_cost = calculate_estimated_cost(LLMModel.GPT_4O_MINI, 100, 50)
-        double_cost = calculate_estimated_cost(LLMModel.GPT_4O_MINI, 200, 100)
+        base_cost = calculate_estimated_cost(LLMModel.GPT_5, 100, 50)
+        double_cost = calculate_estimated_cost(LLMModel.GPT_5, 200, 100)
         assert abs(double_cost - (2 * base_cost)) < 0.000001
 
 
@@ -151,7 +151,7 @@ class TestModelSelectionScenarios:
             privacy=PrivacyLevel.STANDARD,
             urgency=UrgencyLevel.NORMAL
         )
-        assert model == LLMModel.GPT_4O_MINI
+        assert model == LLMModel.GPT_5
     
     def test_complex_scientific_claim(self):
         """Test model selection for complex scientific claims."""
@@ -160,7 +160,7 @@ class TestModelSelectionScenarios:
             privacy=PrivacyLevel.STANDARD,
             urgency=UrgencyLevel.LOW
         )
-        assert model == LLMModel.CLAUDE_3_HAIKU
+        assert model == LLMModel.CLAUDE_4_SONNET
     
     def test_urgent_breaking_news(self):
         """Test model selection for urgent breaking news verification."""
@@ -169,7 +169,7 @@ class TestModelSelectionScenarios:
             privacy=PrivacyLevel.STANDARD,
             urgency=UrgencyLevel.HIGH
         )
-        assert model == LLMModel.CLAUDE_3_HAIKU
+        assert model == LLMModel.CLAUDE_4_SONNET
     
     def test_sensitive_political_claim(self):
         """Test model selection for sensitive political claims."""
@@ -178,7 +178,7 @@ class TestModelSelectionScenarios:
             privacy=PrivacyLevel.SENSITIVE,
             urgency=UrgencyLevel.NORMAL
         )
-        assert model == LLMModel.LLAMA_3_2
+        assert model == LLMModel.LLAMA_4
     
     def test_confidential_internal_claim(self):
         """Test model selection for confidential internal claims."""
@@ -188,7 +188,7 @@ class TestModelSelectionScenarios:
             urgency=UrgencyLevel.HIGH
         )
         # Privacy should override even urgent requests
-        assert model == LLMModel.LLAMA_3_2
+        assert model == LLMModel.LLAMA_4
 
 
 if __name__ == "__main__":
