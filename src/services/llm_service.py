@@ -343,21 +343,39 @@ Format your response as JSON with the following structure:
         request: LLMRequest,
         complexity: ClaimComplexity = ClaimComplexity.MODERATE,
         privacy: PrivacyLevel = PrivacyLevel.STANDARD,
-        urgency: UrgencyLevel = UrgencyLevel.NORMAL
+        urgency: UrgencyLevel = UrgencyLevel.NORMAL,
+        evidence_quality: Optional[float] = None,
+        requires_escalation: bool = False
     ) -> LLMResponse:
         """
-        Call LLM with automatic fallback based on the 3-tier strategy.
+        Call LLM with automatic fallback based on the 3-tier strategy and evidence quality.
         
         Args:
             request: LLM request
             complexity: Claim complexity level
             privacy: Privacy requirements
             urgency: Urgency level
+            evidence_quality: Quality score of gathered evidence (0.0-1.0)
+            requires_escalation: Force escalation to higher model
             
         Returns:
             LLM response from the successful provider
         """
-        # Select optimal model
+        # Adaptive model selection based on evidence quality
+        if evidence_quality is not None:
+            if evidence_quality < 0.5 or requires_escalation:
+                # Low quality evidence - escalate to better model
+                complexity = ClaimComplexity.COMPLEX
+                print(f"Evidence quality low ({evidence_quality:.2f}), escalating to higher model")
+            elif evidence_quality < 0.65:
+                # Medium quality - use moderate complexity
+                complexity = ClaimComplexity.MODERATE
+            else:
+                # High quality evidence - can use simpler model
+                if complexity == ClaimComplexity.COMPLEX:
+                    complexity = ClaimComplexity.MODERATE
+        
+        # Select optimal model based on adjusted parameters
         primary_model = select_optimal_model(complexity, privacy, urgency)
         
         # Try primary model
@@ -365,8 +383,28 @@ Format your response as JSON with the following structure:
             raise LLMServiceError("LLM service not initialized. Use async context manager.")
         
         errors = []
+        models_tried = []
         
-        for model in [primary_model, get_fallback_model(primary_model)]:
+        # Create fallback chain based on evidence quality
+        if evidence_quality and evidence_quality < 0.65:
+            # For low quality evidence, try better models first
+            model_chain = [
+                LLMModel.CLAUDE_3_HAIKU,  # Best reasoning
+                LLMModel.GPT_4O_MINI,     # Good balance
+                LLMModel.LLAMA_3_2        # Local fallback
+            ]
+        else:
+            # Normal fallback chain
+            model_chain = [primary_model, get_fallback_model(primary_model)]
+            if evidence_quality and evidence_quality > 0.8:
+                # High quality evidence - add cheaper model as first option
+                model_chain = [LLMModel.GPT_4O_MINI] + model_chain
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        model_chain = [m for m in model_chain if m and not (m in seen or seen.add(m))]
+        
+        for model in model_chain:
             if model is None:
                 continue
                 
@@ -379,14 +417,24 @@ Format your response as JSON with the following structure:
             
             try:
                 start_time = time.time()
+                models_tried.append(model.value)
+                
+                # Enhance prompt with evidence quality information
+                enhanced_request = LLMRequest(
+                    prompt=self._enhance_prompt_with_evidence_quality(
+                        request.prompt, evidence_quality
+                    ),
+                    max_tokens=request.max_tokens,
+                    temperature=request.temperature
+                )
                 
                 # Call appropriate provider
                 if config.provider == LLMProvider.OPENAI:
-                    response = await self.call_openai(request)
+                    response = await self.call_openai(enhanced_request)
                 elif config.provider == LLMProvider.ANTHROPIC:
-                    response = await self.call_anthropic(request)
+                    response = await self.call_anthropic(enhanced_request)
                 elif config.provider == LLMProvider.OLLAMA:
-                    response = await self.call_ollama(request)
+                    response = await self.call_ollama(enhanced_request)
                 else:
                     raise LLMServiceError(f"Unsupported provider: {config.provider}")
                 
@@ -394,18 +442,33 @@ Format your response as JSON with the following structure:
                 structured_data = self.extract_structured_response(response.content)
                 response.confidence = structured_data.get("confidence", 0.5)
                 
+                # Adjust confidence based on evidence quality
+                if evidence_quality:
+                    # If evidence quality is low, reduce confidence
+                    confidence_adjustment = 0.8 + (evidence_quality * 0.2)
+                    response.confidence = min(1.0, response.confidence * confidence_adjustment)
+                
                 # Update usage tracking
                 self.usage_tracking["requests_today"] += 1
-                self.usage_tracking["tokens_used"]["input"] += len(request.prompt.split())
+                self.usage_tracking["tokens_used"]["input"] += len(enhanced_request.prompt.split())
                 self.usage_tracking["tokens_used"]["output"] += len(response.content.split())
+                
+                # Estimate cost
+                input_cost = (len(enhanced_request.prompt.split()) / 1000) * config.cost_per_input_token
+                output_cost = (len(response.content.split()) / 1000) * config.cost_per_output_token
+                self.usage_tracking["cost_today"] += input_cost + output_cost
                 
                 # Add timing and structured data to metadata
                 response.metadata.update({
                     "response_time_ms": int((time.time() - start_time) * 1000),
                     "structured_data": structured_data,
-                    "fallback_used": model != primary_model
+                    "fallback_used": model != primary_model,
+                    "models_tried": models_tried,
+                    "evidence_quality": evidence_quality,
+                    "confidence_adjusted": evidence_quality is not None
                 })
                 
+                print(f"Successfully used {model.value} (evidence quality: {evidence_quality})")
                 return response
                 
             except (LLMAPIError, LLMRateLimitError) as e:
@@ -414,6 +477,43 @@ Format your response as JSON with the following structure:
         
         # All models failed
         raise LLMServiceError(f"All LLM providers failed: {'; '.join(errors)}")
+    
+    def _enhance_prompt_with_evidence_quality(self, original_prompt: str, 
+                                            evidence_quality: Optional[float]) -> str:
+        """
+        Enhance prompt with evidence quality information.
+        
+        Args:
+            original_prompt: Original verification prompt
+            evidence_quality: Quality score of evidence (0.0-1.0)
+            
+        Returns:
+            Enhanced prompt with evidence quality context
+        """
+        if evidence_quality is None:
+            return original_prompt
+        
+        quality_context = "\n\nEVIDENCE QUALITY CONTEXT:\n"
+        
+        if evidence_quality < 0.5:
+            quality_context += """The available evidence for this claim is of LOW quality (score: {:.2f}).
+Please be extra cautious in your analysis and clearly indicate any uncertainties.
+Consider that the sources may be unreliable or incomplete.""".format(evidence_quality)
+        elif evidence_quality < 0.7:
+            quality_context += """The available evidence for this claim is of MODERATE quality (score: {:.2f}).
+Some sources are credible but there may be gaps or contradictions.
+Please note any limitations in your analysis.""".format(evidence_quality)
+        else:
+            quality_context += """The available evidence for this claim is of HIGH quality (score: {:.2f}).
+Multiple credible sources are available. You can be more confident in your analysis,
+but still maintain appropriate skepticism.""".format(evidence_quality)
+        
+        # Insert context before the JSON format instruction
+        if "Format your response as JSON" in original_prompt:
+            parts = original_prompt.split("Format your response as JSON")
+            return parts[0] + quality_context + "\n\nFormat your response as JSON" + parts[1]
+        else:
+            return original_prompt + quality_context
     
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get current usage statistics."""

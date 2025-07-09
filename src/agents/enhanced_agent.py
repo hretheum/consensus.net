@@ -1,33 +1,29 @@
 """
-Enhanced Agent with Real LLM Integration
-
-This agent extends SimpleAgent to use real LLM APIs instead of simulation.
-It maintains backward compatibility while providing production-ready functionality.
+Enhanced agent with comprehensive modules for real LLM integration
+and full adaptive source credibility support.
 """
-
 import asyncio
 import time
+from typing import Dict, List, Any, Optional, Tuple
 import uuid
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 
-from .simple_agent import (
-    SimpleAgent, InputProcessor, StateManager, OutputGenerator,
-    SimpleEvidenceEngine, VerificationLogic
+from src.agents.base_agent import BaseAgent
+from src.agents.verification_result import VerificationResult, Verdict
+from src.agents.agent_models import (
+    ProcessedClaim, EvidenceBundle, Evidence, LLMRequest, LLMResponse,
+    ClaimComplexity, VerificationStep, VerificationChain, PerformanceMetrics
 )
-from .base_agent import BaseAgent
-from .verification_result import VerificationResult
-from .agent_models import (
-    ProcessedClaim, ClaimComplexity, AgentState, AgentConfig,
-    Evidence, EvidenceBundle, LLMRequest, LLMResponse,
-    VerificationStep, VerificationChain, PerformanceMetrics,
-    InputError, VerificationError
+
+# Import from simple_agent - these contain the modular components
+from src.agents.simple_agent import (
+    InputProcessor, StateManager, SimpleEvidenceEngine,
+    SimpleLLMInteraction, OutputGenerator, VerificationLogic
 )
+
 from src.services.llm_service import llm_service, LLMServiceError
 from src.services.evidence_service import evidence_service, EvidenceServiceError
 from src.config.llm_config import (
-    ClaimComplexity as LLMClaimComplexity,
-    PrivacyLevel, UrgencyLevel
+    LLMModel, ClaimComplexity, PrivacyLevel, UrgencyLevel
 )
 
 
@@ -303,33 +299,35 @@ class EnhancedVerificationLogic(VerificationLogic):
 
 class EnhancedAgent(BaseAgent):
     """
-    Enhanced agent with real LLM and evidence integration.
+    Enhanced agent that uses real LLM APIs and evidence services.
     
-    Extends the SimpleAgent architecture to use real LLM APIs and web search
-    while maintaining backward compatibility and providing fallback when needed.
+    Features:
+    - Real LLM integration with 3-tier fallback strategy
+    - Real evidence gathering from Wikipedia and other sources
+    - Adaptive source credibility with automatic model escalation
+    - Production-ready error handling and monitoring
     """
     
-    def __init__(self, agent_id: str = None, config: Optional[AgentConfig] = None):
-        """Initialize the enhanced agent."""
-        super().__init__(agent_id)
+    def __init__(self, agent_id: str = None):
+        """Initialize enhanced agent with real service integrations."""
+        super().__init__(agent_id or f"enhanced-agent-{uuid.uuid4().hex[:8]}")
         
-        self.config = config or AgentConfig(agent_id=self.agent_id)
-        
-        # Initialize components with enhanced integrations
+        # Initialize modular components
         self.input_processor = InputProcessor()
         self.state_manager = StateManager()
-        self.llm_interaction = EnhancedLLMInteraction()
-        self.evidence_engine = EnhancedEvidenceEngine()
-        self.verification_logic = EnhancedVerificationLogic(
-            self.llm_interaction, 
-            self.evidence_engine
-        )
+        self.evidence_engine = SimpleEvidenceEngine()
+        self.llm_interaction = SimpleLLMInteraction()
         self.output_generator = OutputGenerator()
+        self.verification_logic = VerificationLogic()
         
-        # Performance tracking
+        # Enhanced services (will be set via properties)
+        self._llm_service = None
+        self._evidence_service = None
+        
+        # Metrics tracking
         self.metrics = PerformanceMetrics()
         
-        # Track enhanced usage
+        # Track enhanced agent usage
         self.enhanced_stats = {
             "total_requests": 0,
             "real_llm_calls": 0,
@@ -340,99 +338,173 @@ class EnhancedAgent(BaseAgent):
             "evidence_sources_used": set()
         }
     
-    def verify(self, claim: str) -> VerificationResult:
+    async def verify(self, claim: str) -> VerificationResult:
         """
-        Verify a claim using enhanced LLM and evidence integration.
+        Verify a claim with real LLM integration and adaptive source credibility.
         
-        This method wraps the async verification in a sync interface
-        for backward compatibility.
+        Args:
+            claim: The claim to verify
+            
+        Returns:
+            VerificationResult with verdict, confidence, and evidence
         """
-        return asyncio.run(self.verify_async(claim))
-    
-    async def verify_async(self, claim: str) -> VerificationResult:
-        """
-        Async version of verify with real LLM and evidence integration.
-        """
-        start_time = time.time()
-        
         try:
-            # Step 1: Input Processing
+            # Process the claim
             processed_claim = self.input_processor.parse_claim(claim)
             
-            # Step 2: State Management
-            session_id = self.state_manager.initialize_session(self.agent_id, processed_claim)
-            state = self.state_manager.get_session(session_id)
+            # Gather evidence from multiple sources in parallel
+            async with self.evidence_engine.evidence_service as evidence_service:
+                evidence_bundle = await evidence_service.gather_evidence(
+                    processed_claim, 
+                    max_sources=5
+                )
             
-            # Step 3: Enhanced Core Verification with async LLM and evidence calls
-            verification_chain = await self.verification_logic.verify_claim_async(processed_claim, state)
+            # Extract evidence quality and metadata
+            evidence_quality = evidence_bundle.overall_quality
+            requires_escalation = evidence_bundle.metadata.get("requires_llm_escalation", False)
+            has_academic_sources = evidence_bundle.metadata.get("has_academic_sources", False)
+            consensus_level = evidence_bundle.metadata.get("consensus_level", 0.5)
             
-            # Step 4: Output Generation
-            result = self.output_generator.format_result(
-                processed_claim, 
-                verification_chain, 
-                self.agent_id
+            # Log evidence gathering results
+            print(f"Evidence gathered: {len(evidence_bundle.supporting_evidence)} supporting, "
+                  f"{len(evidence_bundle.contradicting_evidence)} contradicting, "
+                  f"{len(evidence_bundle.neutral_evidence)} neutral")
+            print(f"Evidence quality: {evidence_quality:.2f}, Consensus: {consensus_level:.2f}")
+            
+            # Determine claim complexity based on evidence
+            if consensus_level < 0.6 or len(evidence_bundle.contradicting_evidence) > 2:
+                complexity = ClaimComplexity.COMPLEX
+            elif has_academic_sources and consensus_level > 0.8:
+                complexity = ClaimComplexity.SIMPLE
+            else:
+                complexity = ClaimComplexity.MODERATE
+            
+            # Create verification prompt with evidence
+            prompt = self._create_enhanced_verification_prompt(
+                claim, processed_claim, evidence_bundle
             )
             
-            # Step 5: State Persistence
-            self.state_manager.store_verification(session_id, result)
-            self.state_manager.cleanup_session(session_id)
-            
-            # Update metrics
-            self.metrics.verification_time = time.time() - start_time
-            self.metrics.api_calls_made = 1
-            self.metrics.tokens_used = sum(
-                step.output_data.get("tokens_used", 0) 
-                for step in verification_chain.steps 
-                if isinstance(step.output_data, dict)
+            # Call LLM with adaptive model selection based on evidence quality
+            llm_request = LLMRequest(
+                prompt=prompt,
+                max_tokens=1000,
+                temperature=0.3
             )
             
-            # Update enhanced stats
-            self.enhanced_stats["total_requests"] += 1
-            if verification_chain.metadata.get("simulation_fallback", False):
-                self.enhanced_stats["simulation_fallbacks"] += 1
-            else:
-                self.enhanced_stats["real_llm_calls"] += 1
-                
-            if verification_chain.metadata.get("real_evidence_used", False):
-                self.enhanced_stats["real_evidence_calls"] += 1
-            else:
-                self.enhanced_stats["evidence_fallbacks"] += 1
-                
-            provider = verification_chain.metadata.get("llm_provider")
-            if provider:
-                self.enhanced_stats["provider_usage"][provider] = self.enhanced_stats["provider_usage"].get(provider, 0) + 1
+            async with self.llm_interaction.llm_service as llm_service:
+                llm_response = await llm_service.call_llm_with_fallback(
+                    llm_request,
+                    complexity=complexity,
+                    privacy=PrivacyLevel.STANDARD,
+                    urgency=UrgencyLevel.NORMAL,
+                    evidence_quality=evidence_quality,
+                    requires_escalation=requires_escalation
+                )
             
-            # Add enhanced metadata to result
-            result.metadata.update({
-                "llm_integration": "enhanced",
-                "evidence_integration": "enhanced",
-                "verification_chain_metadata": verification_chain.metadata
-            })
+            # Parse LLM response
+            structured_data = llm_response.metadata.get("structured_data", {})
+            
+            # Create verification result with adaptive confidence
+            result = VerificationResult(
+                claim=claim,
+                verdict=self._parse_verdict(structured_data.get("verdict", "UNCERTAIN")),
+                confidence=llm_response.confidence or structured_data.get("confidence", 0.5),
+                reasoning=structured_data.get("reasoning", llm_response.content),
+                evidence=evidence_bundle,
+                agent_id=self.agent_id,
+                processing_time=0.0,  # Will be calculated
+                metadata={
+                    "processed_claim": processed_claim.to_dict(),
+                    "llm_model": llm_response.model_used,
+                    "evidence_quality": evidence_quality,
+                    "consensus_level": consensus_level,
+                    "has_academic_sources": has_academic_sources,
+                    "sources_consulted": evidence_bundle.metadata.get("sources_used", []),
+                    "llm_metadata": llm_response.metadata,
+                    "adaptive_routing": {
+                        "initial_complexity": processed_claim.complexity.value,
+                        "adjusted_complexity": complexity.value,
+                        "escalation_reason": "low_evidence_quality" if requires_escalation else None
+                    }
+                }
+            )
             
             return result
             
         except Exception as e:
-            # Enhanced error handling
-            error_result = VerificationResult(
+            # Return error result
+            return VerificationResult(
                 claim=claim,
-                verdict="ERROR",
+                verdict=Verdict.ERROR,
                 confidence=0.0,
-                reasoning=f"Enhanced verification failed: {str(e)}",
-                sources=[],
-                evidence=[],
-                metadata={
-                    "error": str(e), 
-                    "error_type": type(e).__name__,
-                    "llm_integration": "enhanced",
-                    "evidence_integration": "enhanced",
-                    "fallback_available": True
-                },
-                agent_id=self.agent_id
+                reasoning=f"Verification failed: {str(e)}",
+                evidence=EvidenceBundle(
+                    supporting_evidence=[],
+                    contradicting_evidence=[],
+                    neutral_evidence=[],
+                    overall_quality=0.0
+                ),
+                agent_id=self.agent_id,
+                processing_time=0.0,
+                metadata={"error": str(e)}
             )
-            
-            self.metrics.verification_time = time.time() - start_time
-            return error_result
     
+    def _create_enhanced_verification_prompt(
+        self, 
+        claim: str, 
+        processed_claim: ProcessedClaim,
+        evidence_bundle: EvidenceBundle
+    ) -> str:
+        """
+        Create an enhanced verification prompt that includes evidence context.
+        
+        Args:
+            claim: Original claim
+            processed_claim: Processed claim with metadata
+            evidence_bundle: Evidence gathered from sources
+            
+        Returns:
+            Enhanced prompt for LLM
+        """
+        # Start with base prompt
+        prompt = self.llm_interaction.llm_service.generate_verification_prompt(
+            claim, processed_claim.complexity
+        )
+        
+        # Add evidence section
+        evidence_section = "\n\nEVIDENCE GATHERED:\n"
+        
+        if evidence_bundle.supporting_evidence:
+            evidence_section += "\nSUPPORTING EVIDENCE:\n"
+            for i, evidence in enumerate(evidence_bundle.supporting_evidence[:3], 1):
+                evidence_section += f"{i}. [{evidence.source}] (credibility: {evidence.credibility_score:.2f})\n"
+                evidence_section += f"   {evidence.content[:200]}...\n\n"
+        
+        if evidence_bundle.contradicting_evidence:
+            evidence_section += "\nCONTRADICTING EVIDENCE:\n"
+            for i, evidence in enumerate(evidence_bundle.contradicting_evidence[:3], 1):
+                evidence_section += f"{i}. [{evidence.source}] (credibility: {evidence.credibility_score:.2f})\n"
+                evidence_section += f"   {evidence.content[:200]}...\n\n"
+        
+        if evidence_bundle.neutral_evidence:
+            evidence_section += "\nNEUTRAL/UNCLEAR EVIDENCE:\n"
+            for i, evidence in enumerate(evidence_bundle.neutral_evidence[:2], 1):
+                evidence_section += f"{i}. [{evidence.source}] (credibility: {evidence.credibility_score:.2f})\n"
+                evidence_section += f"   {evidence.content[:200]}...\n\n"
+        
+        # Add evidence summary
+        evidence_section += f"\nEVIDENCE SUMMARY:\n"
+        evidence_section += f"- Total sources consulted: {len(set(e.source for e in evidence_bundle.supporting_evidence + evidence_bundle.contradicting_evidence + evidence_bundle.neutral_evidence))}\n"
+        evidence_section += f"- Evidence quality score: {evidence_bundle.overall_quality:.2f}\n"
+        evidence_section += f"- Consensus level: {evidence_bundle.metadata.get('consensus_level', 'N/A')}\n"
+        
+        # Insert evidence before the JSON format instruction
+        if "Format your response as JSON" in prompt:
+            parts = prompt.split("Format your response as JSON")
+            return parts[0] + evidence_section + "\nFormat your response as JSON" + parts[1]
+        else:
+            return prompt + evidence_section
+
     def get_llm_stats(self) -> Dict[str, Any]:
         """Get enhanced LLM and evidence usage statistics."""
         return {

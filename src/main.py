@@ -1052,6 +1052,131 @@ async def get_batch_processor_stats():
     except Exception as e:
         return {"error": f"Failed to get batch stats: {str(e)}"}
 
+@app.get("/api/sources/stats")
+async def get_evidence_sources_stats():
+    """Get statistics about evidence sources and their adaptive credibility scores."""
+    try:
+        from src.services.evidence_service import evidence_service
+        
+        # Get current credibility scores
+        credibility_scores = {
+            source: {
+                "current_score": score,
+                "tier": _get_source_tier(source),
+                "performance": evidence_service.source_performance.get(source, {})
+            }
+            for source, score in evidence_service.source_credibility.items()
+        }
+        
+        # Get cache stats
+        cache_stats = evidence_service.get_cache_stats()
+        
+        return {
+            "status": "operational",
+            "credibility_scores": credibility_scores,
+            "cache_statistics": cache_stats,
+            "available_sources": {
+                "academic": ["PubMed", "arXiv"],
+                "encyclopedia": ["Wikipedia"],
+                "news": ["NewsAPI"],
+                "web": ["Google Custom Search"]
+            },
+            "api_keys_configured": {
+                "newsapi": bool(os.getenv("NEWSAPI_KEY")),
+                "google": bool(os.getenv("GOOGLE_API_KEY") and os.getenv("GOOGLE_CSE_ID"))
+            },
+            "adaptive_credibility": {
+                "enabled": True,
+                "update_threshold": 10,
+                "escalation_threshold": 0.65
+            },
+            "timestamp": time.time()
+        }
+    
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+def _get_source_tier(source: str) -> str:
+    """Categorize source into tier."""
+    if source in ["pubmed.ncbi.nlm.nih.gov", "arxiv.org", "nature.com", "science.org"]:
+        return "Tier 1: Academic"
+    elif source in ["who.int", "cdc.gov", "nih.gov", "nasa.gov"]:
+        return "Tier 2: Institutional"
+    elif source in ["wikipedia.org", "britannica.com"]:
+        return "Tier 3: Encyclopedia"
+    elif source in ["reuters.com", "bbc.com", "apnews.com", "newsapi"]:
+        return "Tier 4: News"
+    else:
+        return "Tier 5: Web Search"
+
+
+@app.post("/api/sources/test/{source_type}")
+async def test_evidence_source(source_type: str, query: str = "COVID-19 vaccine safety"):
+    """Test a specific evidence source with a sample query."""
+    try:
+        from src.services.evidence_service import evidence_service
+        from src.agents.agent_models import ProcessedClaim, ClaimComplexity
+        
+        # Create test claim
+        test_claim = ProcessedClaim(
+            original_text=query,
+            normalized_text=query.lower(),
+            claim_type="factual",
+            domain="health" if "health" in query.lower() else "general",
+            entities=[],
+            complexity=ClaimComplexity.MODERATE,
+            language="en"
+        )
+        
+        results = []
+        
+        async with evidence_service as service:
+            if source_type == "wikipedia":
+                results = await service.search_wikipedia(query, limit=2)
+            elif source_type == "pubmed":
+                results = await service.search_pubmed(query, limit=2)
+            elif source_type == "arxiv":
+                results = await service.search_arxiv(query, limit=2)
+            elif source_type == "news":
+                results = await service.search_news(query, limit=2)
+            elif source_type == "google":
+                results = await service.search_google(query, limit=2)
+            else:
+                raise ValueError(f"Unknown source type: {source_type}")
+        
+        return {
+            "success": True,
+            "source_type": source_type,
+            "query": query,
+            "results_count": len(results),
+            "results": [
+                {
+                    "content": r.content[:300] + "..." if len(r.content) > 300 else r.content,
+                    "source": r.source,
+                    "credibility_score": r.credibility_score,
+                    "relevance_score": r.relevance_score,
+                    "timestamp": r.timestamp.isoformat()
+                }
+                for r in results
+            ]
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": str(e),
+                "source_type": source_type
+            }
+        )
+
+
 @app.get("/api/system/phase4")
 async def get_phase4_status():
     """Get comprehensive Phase 4 system status."""

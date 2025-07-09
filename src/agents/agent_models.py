@@ -51,23 +51,22 @@ class Evidence:
 
 @dataclass
 class EvidenceBundle:
-    """
-    Collection of evidence organized by stance toward the claim.
+    """Bundle of evidence collected from various sources."""
+    supporting_evidence: List[Evidence]
+    contradicting_evidence: List[Evidence]
+    neutral_evidence: List[Evidence]
+    overall_quality: float
+    metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
     
-    Groups evidence into supporting, contradicting, and neutral categories
-    with an overall quality assessment.
-    """
-    supporting_evidence: List[Evidence] = field(default_factory=list)
-    contradicting_evidence: List[Evidence] = field(default_factory=list)
-    neutral_evidence: List[Evidence] = field(default_factory=list)
-    overall_quality: float = 0.0
-    
-    @property
-    def total_evidence_count(self) -> int:
-        """Total number of pieces of evidence."""
-        return (len(self.supporting_evidence) + 
-                len(self.contradicting_evidence) + 
-                len(self.neutral_evidence))
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "supporting_evidence": [e.to_dict() for e in self.supporting_evidence],
+            "contradicting_evidence": [e.to_dict() for e in self.contradicting_evidence],
+            "neutral_evidence": [e.to_dict() for e in self.neutral_evidence],
+            "overall_quality": self.overall_quality,
+            "metadata": self.metadata
+        }
 
 
 @dataclass
