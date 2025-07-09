@@ -424,8 +424,11 @@ Format your response as JSON with the following structure:
                     prompt=self._enhance_prompt_with_evidence_quality(
                         request.prompt, evidence_quality
                     ),
-                    max_tokens=request.max_tokens,
-                    temperature=request.temperature
+                    model=request.model,  # Use model from original request
+                    parameters={
+                        "max_tokens": request.max_tokens,
+                        "temperature": request.temperature
+                    }
                 )
                 
                 # Call appropriate provider
