@@ -32,6 +32,18 @@ class ProcessedClaim:
     context: Dict[str, Any]
     preprocessing_metadata: Dict[str, Any]
     timestamp: datetime = field(default_factory=datetime.now)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "original_text": self.original_text,
+            "normalized_text": self.normalized_text,
+            "domain": self.domain,
+            "complexity": self.complexity.value,
+            "context": self.context,
+            "preprocessing_metadata": self.preprocessing_metadata,
+            "timestamp": self.timestamp.isoformat()
+        }
 
 
 @dataclass
@@ -47,6 +59,17 @@ class Evidence:
     relevance_score: float
     timestamp: datetime
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "content": self.content,
+            "source": self.source,
+            "credibility_score": self.credibility_score,
+            "relevance_score": self.relevance_score,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata
+        }
 
 
 @dataclass
@@ -57,6 +80,11 @@ class EvidenceBundle:
     neutral_evidence: List[Evidence]
     overall_quality: float
     metadata: Optional[Dict[str, Any]] = field(default_factory=dict)
+    
+    @property
+    def total_evidence_count(self) -> int:
+        """Get total count of all evidence items."""
+        return len(self.supporting_evidence) + len(self.contradicting_evidence) + len(self.neutral_evidence)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
